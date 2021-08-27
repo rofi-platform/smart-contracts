@@ -11,7 +11,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import "./ERC721.sol";
 import "./RandomInterface.sol";
-import "./UpgraderInterface.sol";
 
 contract NFT is ERC721, Ownable {
     using SafeMath for uint256;
@@ -131,14 +130,12 @@ contract NFT is ERC721, Ownable {
         emit Evolve(_tokenId, tribe);
     }
     
-    function changeStar(uint256 _tokenId) public onlyUpgrader {
+    function changeStar(uint256 _tokenId, uint8 _star) public onlyUpgrader {
         Hero storage hero = heros[_tokenId];
         
-        uint8 star = UpgraderInterface(msg.sender).changeStar(_tokenId);
+        hero.star = _star;
         
-        hero.star = star;
-        
-        emit ChangeStar(_tokenId, star);
+        emit ChangeStar(_tokenId, _star);
     }
     
     function updateMerkleRoots(bytes32 _merkleRoot) public onlyOwner {
