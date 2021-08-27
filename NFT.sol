@@ -11,13 +11,16 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import "./ERC721.sol";
 import "./RandomInterface.sol";
+import "./UpgraderInterface.sol";
 
 contract NFT is ERC721, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
     
-    struct Robo {
+    struct Hero {
+        bool isInitSale;
+        uint8 star;
         uint8 tribe;
         uint256 exp;
         uint256 bornAt;
@@ -25,11 +28,12 @@ contract NFT is ERC721, Ownable {
     
     uint256 public latestTokenId;
     
-    mapping(uint256 => Robo) internal robos;
+    mapping(uint256 => Hero) internal heros;
     
     event Spawning(uint256 indexed tokenId);
     event Evolve(uint256 indexed tokenId, uint8 tribe);
     event Exp(uint256 indexed tokenId, address onwer, uint256 exp);
+    event ChangeStar(uint256 indexed tokenId, uint8 star);
     
     RandomInterface public random;
     
@@ -52,6 +56,11 @@ contract NFT is ERC721, Ownable {
         _;
     }
     
+    modifier onlyUpgrader {
+        require(manager.upgraders(msg.sender), "require Upgrader.");
+        _;
+    }
+    
     function _mint(address to, uint256 tokenId) internal override(ERC721) {
         super._mint(to, tokenId);
         
@@ -62,7 +71,26 @@ contract NFT is ERC721, Ownable {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
-        robos[nextTokenId] = Robo({
+        heros[nextTokenId] = Hero({
+            isInitSale: false,
+            star: 1,
+            tribe: 0, // Egg
+            exp: 0,
+            bornAt: block.timestamp
+        });
+        
+        random.requestRandomNumber(nextTokenId);
+        
+        emit Spawning(nextTokenId);
+    }
+    
+    function spawn(address to, bool _isInitSale) public onlySpawner {
+        uint256 nextTokenId = _getNextTokenId();
+        _mint(to, nextTokenId);
+        
+        heros[nextTokenId] = Hero({
+            isInitSale: _isInitSale,
+            star: 1,
             tribe: 0, // Egg
             exp: 0,
             bornAt: block.timestamp
@@ -82,25 +110,35 @@ contract NFT is ERC721, Ownable {
     
     function exp(uint256 _tokenId, address _owner, uint256 _exp) public onlySpawner {
         require(_exp > 0, "require: non zero exp");
-        Robo storage robo = robos[_tokenId];
-        robo.exp = robo.exp.add(_exp);
+        Hero storage hero = heros[_tokenId];
+        hero.exp = hero.exp.add(_exp);
         emit Exp(_tokenId, _owner, _exp);
     }
     
     function evolve(uint256 _tokenId, address _owner) public onlySpawner {
         require(ownerOf(_tokenId) == _owner, "require: owner");
-        Robo storage robo = robos[_tokenId];
-        require(robo.tribe == 0, "require: tribe 0");
+        Hero storage hero = heros[_tokenId];
+        require(hero.tribe == 0, "require: tribe 0");
         
         uint256 randomNumber = random.getResultByTokenId(_tokenId);
         require(randomNumber != 42, "required: not generated");
         
         uint8 tribe = uint8(randomNumber.mod(6).add(1));
         
-        robo.bornAt = block.timestamp;
-        robo.tribe = tribe;
+        hero.bornAt = block.timestamp;
+        hero.tribe = tribe;
         
         emit Evolve(_tokenId, tribe);
+    }
+    
+    function changeStar(uint256 _tokenId) public onlyUpgrader {
+        Hero storage hero = heros[_tokenId];
+        
+        uint8 star = UpgraderInterface(msg.sender).changeStar(_tokenId);
+        
+        hero.star = star;
+        
+        emit ChangeStar(_tokenId, star);
     }
     
     function updateMerkleRoots(bytes32 _merkleRoot) public onlyOwner {
