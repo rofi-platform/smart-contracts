@@ -20,16 +20,19 @@ contract NFT is ERC721, Ownable {
     struct Hero {
         bool isInitSale;
         uint8 star;
-        uint8 tribe;
+        uint8 heroType;
         uint256 exp;
         uint256 bornAt;
     }
     
     uint256 public latestTokenId;
     
+    uint nonce = 0;
+    
     mapping(uint256 => Hero) internal heros;
     
-    event Spawning(uint256 indexed tokenId);
+    event Spawn(uint256 indexed tokenId, address to);
+    
     event Evolve(uint256 indexed tokenId, uint8 tribe);
     event Exp(uint256 indexed tokenId, address onwer, uint256 exp);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
@@ -70,34 +73,46 @@ contract NFT is ERC721, Ownable {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
+        uint _randomNumber = _getRandomNumber();
+        
+        uint8 _totalHeroTypes = _getTotalHeroTypes();
+        
+        uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
+        
         heros[nextTokenId] = Hero({
             isInitSale: false,
-            star: 1,
-            tribe: 0, // Egg
+            star: 0,
+            heroType: _heroType,
             exp: 0,
             bornAt: block.timestamp
         });
         
         random.requestRandomNumber(nextTokenId);
         
-        emit Spawning(nextTokenId);
+        emit Spawn(nextTokenId, to);
     }
     
     function spawn(address to, bool _isInitSale) public onlySpawner {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
+        uint _randomNumber = _getRandomNumber();
+        
+        uint8 _totalHeroTypes = _getTotalHeroTypes();
+        
+        uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
+        
         heros[nextTokenId] = Hero({
             isInitSale: _isInitSale,
             star: 1,
-            tribe: 0, // Egg
+            heroType: _heroType,
             exp: 0,
             bornAt: block.timestamp
         });
         
         random.requestRandomNumber(nextTokenId);
         
-        emit Spawning(nextTokenId);
+        emit Spawn(nextTokenId, to);
     }
     
     function multiSpawn(address to, uint amount) public onlySpawner {
@@ -154,5 +169,18 @@ contract NFT is ERC721, Ownable {
     
     function _incrementTokenId() private {
         latestTokenId++;
+    }
+    
+    function _getRandomNumber() private returns (uint) {
+        nonce += 1;
+        return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
+    }
+    
+    function _getTotalHeroTypes() private returns (uint8) {
+        return manager.totalHeroTypes();
+    }
+    
+    function _getBiggestStar() private returns (uint8) {
+        return manager.biggestStar();
     }
 }
