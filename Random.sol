@@ -6,10 +6,14 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./RandomInterface.sol";
 
+interface IRandomRequester {
+    function submitRandomness(uint _tokenId, uint _randomness) external;
+}
+
 contract Random is VRFConsumerBase, RandomInterface {
     using SafeMath for uint256;
     
-    uint256 private constant IN_PROGRESS = 42;
+    uint256 private constant IN_PROGRESS = 0;
 
     bytes32 public keyHash;
     
@@ -21,6 +25,8 @@ contract Random is VRFConsumerBase, RandomInterface {
     
     event RandomNumberGenerated(uint256 tokenId);
     
+    IRandomRequester private _randomRequester;
+    
     // constructor(address _vrfCoordinator, address _link, bytes32 _keyHash, uint256 _fee)
     //     VRFConsumerBase(
     //         _vrfCoordinator,
@@ -29,6 +35,7 @@ contract Random is VRFConsumerBase, RandomInterface {
     // {
     //     keyHash = _keyHash;
     //     fee = _fee;
+    //     _randomRequester = IRandomRequester(msg.sender);
     // }
     
     constructor()
@@ -39,6 +46,7 @@ contract Random is VRFConsumerBase, RandomInterface {
     {
         keyHash = 0xcaf3c3727e033261d383b315559476f48034c13b18f8cafed4d871abe5049186;
         fee = 0.1 * 10 ** 18;
+        _randomRequester = IRandomRequester(msg.sender);
     }
     
     function requestRandomNumber(uint256 tokenId) external override {
@@ -52,6 +60,7 @@ contract Random is VRFConsumerBase, RandomInterface {
         uint256 tokenId = tokens[requestId];
         results[tokenId] = randomness;
         emit RandomNumberGenerated(tokenId);
+        _randomRequester.submitRandomness(tokenId, randomness);
     }
     
     function getResultByTokenId(uint256 tokenId) external view override returns (uint256) {

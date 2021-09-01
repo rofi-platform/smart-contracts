@@ -10,7 +10,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import "./ERC721.sol";
-import "./RandomInterface.sol";
+import "./Random.sol";
+import "./StarFactory.sol";
 
 contract NFT is ERC721, Ownable {
     using SafeMath for uint256;
@@ -21,24 +22,22 @@ contract NFT is ERC721, Ownable {
         bool isInitSale;
         uint8 star;
         uint8 heroType;
-        uint256 exp;
         uint256 bornAt;
     }
     
     uint256 public latestTokenId;
     
-    uint nonce = 0;
+    uint private nonce = 0;
     
     mapping(uint256 => Hero) internal heros;
     
     event Spawn(uint256 indexed tokenId, address to);
-    
-    event Evolve(uint256 indexed tokenId, uint8 tribe);
-    event Exp(uint256 indexed tokenId, address onwer, uint256 exp);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
     
-    RandomInterface public random;
+    Random public random;
     
+    StarFactory private _starFactory;
+
     bytes32 merkleRoot;
     
     event MerkleRootUpdated(bytes32 merkleRoot);
@@ -46,11 +45,16 @@ contract NFT is ERC721, Ownable {
     constructor(
         string memory _name,
         string memory _symbol,
-        address _manager,
-        address _random
+        address _manager
     ) ERC721(_name, _symbol, _manager)
     {
-        random = RandomInterface(_random);
+        random = new Random();
+        _starFactory = new StarFactory();
+    }
+    
+    modifier onlyManager {
+        require(msg.sender == address(manager), "require Manager.");
+        _;
     }
     
     modifier onlySpawner {
@@ -63,10 +67,28 @@ contract NFT is ERC721, Ownable {
         _;
     }
     
+    modifier onlyRandom {
+        require(msg.sender == address(random), "require Random.");
+        _;
+    }
+    
     function _mint(address to, uint256 tokenId) internal override(ERC721) {
         super._mint(to, tokenId);
         
         _incrementTokenId();
+    }
+    
+    function upgrade(uint256 _tokenId, uint8 _star) public onlyUpgrader {
+        Hero storage hero = heros[_tokenId];
+        
+        hero.star = _star;
+        
+        emit ChangeStar(_tokenId, _star);
+    }
+
+    function submitRandomness(uint _tokenId, uint _randomness) external onlyRandom {
+        uint8 star = _starFactory.getStarFromRandomness(_randomness);
+        _initStar(_tokenId, star);
     }
     
     function spawn(address to) public onlySpawner {
@@ -83,7 +105,6 @@ contract NFT is ERC721, Ownable {
             isInitSale: false,
             star: 0,
             heroType: _heroType,
-            exp: 0,
             bornAt: block.timestamp
         });
         
@@ -104,9 +125,8 @@ contract NFT is ERC721, Ownable {
         
         heros[nextTokenId] = Hero({
             isInitSale: _isInitSale,
-            star: 1,
+            star: 0,
             heroType: _heroType,
-            exp: 0,
             bornAt: block.timestamp
         });
         
@@ -122,37 +142,6 @@ contract NFT is ERC721, Ownable {
         }
     }
     
-    function exp(uint256 _tokenId, address _owner, uint256 _exp) public onlySpawner {
-        require(_exp > 0, "require: non zero exp");
-        Hero storage hero = heros[_tokenId];
-        hero.exp = hero.exp.add(_exp);
-        emit Exp(_tokenId, _owner, _exp);
-    }
-    
-    function evolve(uint256 _tokenId, address _owner) public onlySpawner {
-        require(ownerOf(_tokenId) == _owner, "require: owner");
-        Hero storage hero = heros[_tokenId];
-        require(hero.tribe == 0, "require: tribe 0");
-        
-        uint256 randomNumber = random.getResultByTokenId(_tokenId);
-        require(randomNumber != 42, "required: not generated");
-        
-        uint8 tribe = uint8(randomNumber.mod(6).add(1));
-        
-        hero.bornAt = block.timestamp;
-        hero.tribe = tribe;
-        
-        emit Evolve(_tokenId, tribe);
-    }
-    
-    function changeStar(uint256 _tokenId, uint8 _star) public onlyUpgrader {
-        Hero storage hero = heros[_tokenId];
-        
-        hero.star = _star;
-        
-        emit ChangeStar(_tokenId, _star);
-    }
-    
     function updateMerkleRoots(bytes32 _merkleRoot) public onlyOwner {
         merkleRoot = _merkleRoot;
 
@@ -161,6 +150,10 @@ contract NFT is ERC721, Ownable {
     
     function verifyMerkleProof(bytes32[] memory _proof, bytes32 _leaf) public view returns (bool valid) {
         return MerkleProof.verify(_proof, merkleRoot, _leaf);
+    }
+    
+    function getHero(uint256 _tokenId) public view returns (Hero memory) {
+        return heros[_tokenId];
     }
     
     function _getNextTokenId() private view returns (uint256) {
@@ -180,7 +173,16 @@ contract NFT is ERC721, Ownable {
         return manager.totalHeroTypes();
     }
     
-    function _getBiggestStar() private returns (uint8) {
-        return manager.biggestStar();
+    function _initStar(uint256 _tokenId, uint8 _star) private {
+        Hero storage hero = heros[_tokenId];
+        require(hero.star == 0, "require: star 0");
+
+        hero.star = _star;
+
+        emit ChangeStar(_tokenId, _star);
+    }
+    
+    function changeStarFactory(address starFactory_) external onlyManager {
+        _starFactory = StarFactory(starFactory_);
     }
 }

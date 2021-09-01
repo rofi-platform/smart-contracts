@@ -13,7 +13,7 @@ contract Manager is ManagerInterface, Ownable {
     
     mapping (address => bool) _upgraders;
     
-    uint256 internal _priceEgg = 5000*10**18;
+    uint8 internal _totalHeroTypes = 6;
     
     function spawners(address _address) external view override returns (bool) {
         return _spawners[_address];
@@ -39,11 +39,11 @@ contract Manager is ManagerInterface, Ownable {
         _upgraders[_address] = false;
     }
     
-    function priceEgg() external view override returns (uint256) {
-        return _priceEgg;
+    function totalHeroTypes() external view override returns (uint8) {
+        return _totalHeroTypes;
     }
     
-    function setPriceEgg(uint256 _price) public onlyOwner {
-        _priceEgg = _price;
+    function setTotalHeroTypes(uint8 totalHeroTypes_) public onlyOwner {
+        _totalHeroTypes = totalHeroTypes_;
     }
 }

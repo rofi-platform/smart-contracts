@@ -7,5 +7,5 @@ interface ManagerInterface {
     
     function upgraders(address _address) external view returns (bool);
     
-    function priceEgg() external view returns (uint256);
+    function totalHeroTypes() external view returns (uint8);
 }
