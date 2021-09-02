@@ -31,7 +31,7 @@ contract NFT is ERC721, Ownable {
     
     mapping(uint256 => Hero) internal heros;
     
-    event Spawn(uint256 indexed tokenId, address to);
+    event Spawn(uint256 indexed tokenId, uint8 heroType, address to);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
     
     Random public random;
@@ -110,7 +110,7 @@ contract NFT is ERC721, Ownable {
         
         random.requestRandomNumber(nextTokenId);
         
-        emit Spawn(nextTokenId, to);
+        emit Spawn(nextTokenId, _heroType, to);
     }
     
     function spawn(address to, bool _isInitSale) public onlySpawner {
@@ -132,7 +132,7 @@ contract NFT is ERC721, Ownable {
         
         random.requestRandomNumber(nextTokenId);
         
-        emit Spawn(nextTokenId, to);
+        emit Spawn(nextTokenId, _heroType, to);
     }
     
     function multiSpawn(address to, uint amount) public onlySpawner {
