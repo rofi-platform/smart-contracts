@@ -8,9 +8,10 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-import "./ERC721.sol";
 import "./Random.sol";
+import "./Manager.sol";
 import "./StarFactory.sol";
 
 contract NFT is ERC721, Ownable {
@@ -19,7 +20,6 @@ contract NFT is ERC721, Ownable {
     using EnumerableSet for EnumerableSet.UintSet;
     
     struct Hero {
-        bool isInitSale;
         uint8 star;
         uint8 heroType;
         uint256 bornAt;
@@ -36,6 +36,8 @@ contract NFT is ERC721, Ownable {
     
     Random public random;
     
+    Manager public manager;
+    
     StarFactory private _starFactory;
 
     bytes32 merkleRoot;
@@ -46,9 +48,10 @@ contract NFT is ERC721, Ownable {
         string memory _name,
         string memory _symbol,
         address _manager
-    ) ERC721(_name, _symbol, _manager)
+    ) ERC721(_name, _symbol)
     {
         random = new Random();
+        manager = new Manager();
         _starFactory = new StarFactory();
     }
     
@@ -102,29 +105,6 @@ contract NFT is ERC721, Ownable {
         uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
         
         heros[nextTokenId] = Hero({
-            isInitSale: false,
-            star: 0,
-            heroType: _heroType,
-            bornAt: block.timestamp
-        });
-        
-        random.requestRandomNumber(nextTokenId);
-        
-        emit Spawn(nextTokenId, _heroType, to);
-    }
-    
-    function spawn(address to, bool _isInitSale) public onlySpawner {
-        uint256 nextTokenId = _getNextTokenId();
-        _mint(to, nextTokenId);
-        
-        uint _randomNumber = _getRandomNumber();
-        
-        uint8 _totalHeroTypes = _getTotalHeroTypes();
-        
-        uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
-        
-        heros[nextTokenId] = Hero({
-            isInitSale: _isInitSale,
             star: 0,
             heroType: _heroType,
             bornAt: block.timestamp

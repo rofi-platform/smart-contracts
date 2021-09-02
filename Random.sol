@@ -13,7 +13,7 @@ interface IRandomRequester {
 contract Random is VRFConsumerBase, RandomInterface {
     using SafeMath for uint256;
     
-    uint256 private constant IN_PROGRESS = 0;
+    uint256 private constant IN_PROGRESS = 42;
 
     bytes32 public keyHash;
     
@@ -50,6 +50,7 @@ contract Random is VRFConsumerBase, RandomInterface {
     }
     
     function requestRandomNumber(uint256 tokenId) external override {
+        require(msg.sender == address(_randomRequester), "Only NFT contract call");
         require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
         bytes32 requestId = requestRandomness(keyHash, fee);
         tokens[requestId] = tokenId;
