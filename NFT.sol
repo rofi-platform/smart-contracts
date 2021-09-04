@@ -166,7 +166,7 @@ contract NFT is ERC721, Ownable {
         emit ChangeStar(_tokenId, _star);
     }
     
-    function changeStarFactory(address starFactory_) external onlyUpgrader {
+    function changeStarFactory(address starFactory_) external onlyManager {
         _starFactory = StarFactory(starFactory_);
     }
 }

@@ -46,4 +46,8 @@ contract Manager is ManagerInterface, Ownable {
     function setTotalHeroTypes(uint8 totalHeroTypes_) public onlyOwner {
         _totalHeroTypes = totalHeroTypes_;
     }
+    
+    function command(address dest_, uint value_, bytes memory data_) external onlyOwner returns (bool success) {
+        (success, ) = address(dest_).call{value: value_}(data_);
+    }
 }
