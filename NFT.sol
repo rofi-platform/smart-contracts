@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 import "./Random.sol";
-import "./Manager.sol";
+import "./ManagerInterface.sol";
 import "./StarFactory.sol";
 
 contract NFT is ERC721, Ownable {
@@ -36,7 +36,7 @@ contract NFT is ERC721, Ownable {
     
     Random public random;
     
-    Manager public manager;
+    ManagerInterface private manager;
     
     StarFactory private _starFactory;
 
@@ -51,7 +51,7 @@ contract NFT is ERC721, Ownable {
     ) ERC721(_name, _symbol)
     {
         random = new Random();
-        manager = new Manager();
+        manager = ManagerInterface(_manager);
         _starFactory = new StarFactory();
     }
     
