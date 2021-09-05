@@ -18,18 +18,18 @@ contract UseController {
         _;
     }
 
+    address constant private ZERO_ADDRESS = address(0x0);
+
     // fixed
     address private _manager;
     // changeable
-    address private _controller;
+    address private _controller = ZERO_ADDRESS;
 
     constructor(
-        address manager_,
-        address initController_
+        address manager_
     )
     {
         _manager = manager_;
-        _updateController(initController_);
     }
 
     function _updateManager(
@@ -53,6 +53,15 @@ contract UseController {
     /*
         public
     */
+
+    function initController(
+        address controller_
+    )
+        external
+    {
+        require(_controller == ZERO_ADDRESS, "UseController: already set!");
+        _updateController(controller_);
+    }
 
     function updateManager(
         address manager_

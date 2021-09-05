@@ -46,11 +46,10 @@ contract NFT is ERC721, Ownable, UseController {
     constructor(
         string memory _name,
         string memory _symbol,
-        address _manager,
-        address _initController
+        address _manager
     )
         ERC721(_name, _symbol)
-        UseController(_manager, _initController)
+        UseController(_manager)
     {
         _random = new Random();
     }

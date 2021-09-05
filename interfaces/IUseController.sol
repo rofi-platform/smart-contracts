@@ -7,4 +7,6 @@ interface IUnderController {
     function updateManager(address manager_) external;
     function controller() external view returns(address);
     function manager() external view returns(address);
+
+    function initController(address controller_) external;
 }

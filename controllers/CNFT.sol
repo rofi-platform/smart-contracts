@@ -19,6 +19,12 @@ contract CNFT is Ownable {
         address nftContractAddress_
     )
     {
+        bytes4 SELECTOR =  bytes4(keccak256(bytes('initController(address)')));
+        nftContractAddress_.call((abi.encodeWithSelector(
+            SELECTOR,
+            address(this)
+        )));
+
         nftContract = INFT(nftContractAddress_);
         paymentToken = IERC20(paymentTokenAddress_);
     }
