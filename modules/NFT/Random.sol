@@ -3,27 +3,13 @@
 pragma solidity ^0.8.0;
 
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../../interfaces/NFT/IRandom.sol";
+import "../../interfaces/NFT/IRandomRequester.sol";
+import "../../interfaces/IWETH.sol";
+
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "../../interfaces/IRandom.sol";
-
-interface IRandomRequester {
-    function submitRandomness(uint _tokenId, uint _randomness) external;
-}
-
-interface IERC20 {
-    function allowance(address owner, address spender) external view returns (uint);
-
-    function balanceOf(address account) external view returns (uint256);
-
-    function transfer(address recipient, uint256 amount) external returns (bool);
-
-    function approve(address spender, uint256 amount) external returns (bool);
-}
-
-interface IWETH is IERC20 {
-    function deposit() external payable;
-    function withdraw(uint) external;
-}
 
 library LHelper {
     IWETH constant internal weth = IWETH(address(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c));
@@ -292,11 +278,11 @@ contract Random is VRFConsumerBase, IRandom, RandomFee {
         return results[tokenId];
     }
     
-    function withdrawBnb() public {
-        LHelper.transferBnb(tx.origin, 0);
-    }
+    // function withdrawBnb() public {
+    //     LHelper.transferBnb(tx.origin, 0);
+    // }
 
-    function withdrawToken(address token_) public {
-        LHelper.transferToken(token_, tx.origin, 0);
-    }
+    // function withdrawToken(address token_) public {
+    //     LHelper.transferToken(token_, tx.origin, 0);
+    // }
 }
