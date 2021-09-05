@@ -291,12 +291,4 @@ contract Random is VRFConsumerBase, RandomInterface, RandomFee {
     function getResultByTokenId(uint256 tokenId) external view override returns (uint256) {
         return results[tokenId];
     }
-    
-    function withdrawBnb() public {
-        LHelper.transferBnb(tx.origin, 0);
-    }
-
-    function withdrawToken(address token_) public {
-        LHelper.transferToken(token_, tx.origin, 0);
-    }
 }
