@@ -13,11 +13,19 @@ contract CNFT is Ownable {
         random.call{value: msg.value}(new bytes(0));
         _;
     }
+
+    modifier onlyGenesisActive {
+        require(_isGenesisActive, "CNFT: genesis spawn disabled!");
+        _;
+    }
+
     IERC20 public paymentToken;
     INFT public nftContract;
 
     uint256 public eggPrice = 100000*10**18;
     address public deadAddress = 0x000000000000000000000000000000000000dEaD;
+
+    bool private _isGenesisActive = true;
 
     constructor(
         address paymentTokenAddress_,
@@ -34,17 +42,28 @@ contract CNFT is Ownable {
         paymentToken = IERC20(paymentTokenAddress_);
     }
 
+    function setGenesisActive(
+        bool isActive_
+    )
+        external
+        onlyOwner
+    {
+        _isGenesisActive = isActive_;
+    }
+
     function setBnbFee(uint bnbFee_) external onlyOwner {
         nftContract.setBnbFee(bnbFee_);
     }
 
-    function genesisSpawn() external payable onlyPaidFee {
-        nftContract.spawn(msg.sender, true);
+    function genesisSpawn() external payable onlyPaidFee onlyGenesisActive {
+        paymentToken.transferFrom(msg.sender, deadAddress, eggPrice);
+        bool _isGenesis = true;
+        nftContract.spawn(msg.sender, _isGenesis, uint8(0));
     }
 
-    function spawn() external payable onlyPaidFee {
-        paymentToken.transferFrom(msg.sender, deadAddress, eggPrice);
-        nftContract.spawn(msg.sender, false);
+    function spawn(address to_, uint8 star_) external payable onlyPaidFee onlyOwner {
+        bool _isGenesis = false;
+        nftContract.spawn(to_, _isGenesis, star_);
     }
 
     function getStarFromRandomness(uint256 _randomness) external pure returns(uint8) {
@@ -63,5 +82,13 @@ contract CNFT is Ownable {
 
     function getTotalHeroTypes() external pure returns (uint8) {
         return 6;
+    }
+
+    function isGenesisActive()
+        public
+        view
+        returns(bool isActive)
+    {
+        isActive = _isGenesisActive;
     }
 }

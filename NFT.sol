@@ -75,10 +75,11 @@ contract NFT is ERC721, Ownable, UseController {
     
     function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna, uint8 _heroType) private {
         Hero storage hero = heros[_tokenId];
-        require(hero.star == 0, "require: star 0");
         require(hero.heroType == 0, "require: heroType 0");
 
-        hero.star = _star;
+        if (hero.star == 0) {
+            hero.star = _star;
+        }
         hero.dna = _dna;
         hero.heroType = _heroType;
 
@@ -109,12 +110,12 @@ contract NFT is ERC721, Ownable, UseController {
         _initHero(_tokenId, star, dna, heroType);
     }
     
-    function spawn(address to, bool _isGenesis) public onlyController {
+    function spawn(address to, bool _isGenesis, uint8 _star) public onlyController {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
         heros[nextTokenId] = Hero({
-            star: 0,
+            star: _star,
             heroType: 0,
             dna: '',
             isGenesis: _isGenesis,
