@@ -98,30 +98,7 @@ contract NFT is ERC721, Ownable {
         _initHero(_tokenId, star, dna);
     }
     
-    function spawn(address to) public onlySpawner {
-        uint256 nextTokenId = _getNextTokenId();
-        _mint(to, nextTokenId);
-        
-        uint _randomNumber = _getRandomNumber();
-        
-        uint8 _totalHeroTypes = _getTotalHeroTypes();
-        
-        uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
-        
-        heros[nextTokenId] = Hero({
-            star: 0,
-            heroType: _heroType,
-            dna: '',
-            isGenesis: false,
-            bornAt: block.timestamp
-        });
-        
-        random.requestRandomNumber(nextTokenId);
-        
-        emit Spawn(nextTokenId, _heroType, to);
-    }
-    
-    function genesisSpawn(address to, bool _isGenesis) public onlySpawner {
+    function spawn(address to, bool _isGenesis) public onlySpawner {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
@@ -142,13 +119,6 @@ contract NFT is ERC721, Ownable {
         random.requestRandomNumber(nextTokenId);
         
         emit Spawn(nextTokenId, _heroType, to);
-    }
-    
-    function multiSpawn(address to, uint amount) public onlySpawner {
-        require(amount > 1, "require: multiple");
-        for (uint256 index = 0; index < amount; index++) {
-            spawn(to);
-        }
     }
     
     function updateMerkleRoots(bytes32 _merkleRoot) public onlyOwner {
