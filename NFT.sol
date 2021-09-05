@@ -24,7 +24,7 @@ contract NFT is ERC721, Ownable, UseController {
         uint256 bornAt;
     }
     
-    uint256 public latestTokenId;
+    uint256 private _latestTokenId;
     
     uint private nonce = 0;
     
@@ -66,11 +66,11 @@ contract NFT is ERC721, Ownable, UseController {
     }
 
     function _getNextTokenId() private view returns (uint256) {
-        return latestTokenId.add(1);
+        return _latestTokenId.add(1);
     }
     
     function _incrementTokenId() private {
-        latestTokenId++;
+        _latestTokenId++;
     }
     
     function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna, uint8 _heroType) private {
@@ -142,5 +142,13 @@ contract NFT is ERC721, Ownable, UseController {
         returns(address)
     {
         return address(_random);
+    }
+
+    function latestTokenId()
+        external
+        view
+        returns(uint)
+    {
+        return _latestTokenId;
     }
 }

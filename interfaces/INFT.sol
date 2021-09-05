@@ -11,4 +11,6 @@ interface INFT is IUseController, IRandomRequester {
     function upgrade(uint256 _tokenId, uint8 _star) external;
     
     function spawn(address to, bool _isGenesis) external;
+
+    function latestTokenId() external view returns(uint);
 }
