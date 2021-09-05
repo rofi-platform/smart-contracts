@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface FactoryInterface {
     function spawn(address sender) external;
+    function random() external view returns(address);
 }
 
 contract StarterPack {
@@ -20,8 +21,11 @@ contract StarterPack {
         paymentToken = IERC20(paymentTokenAddress_);
     }
 
-    function spawn() public {
+    function spawn() public payble {
         paymentToken.transferFrom(msg.sender, deadAddress, eggPrice);
+        address random = factoryContract.random();
+        (bool success,) = random.call{value: msg.value}(new bytes(0));
+        require(success, "bnb fee required!");
         factoryContract.spawn(msg.sender);
     }
 }
