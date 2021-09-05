@@ -84,6 +84,10 @@ contract NFT is ERC721, Ownable, UseController {
 
         emit InitHero(_tokenId, _star, _heroType, _dna);
     }
+
+    /*
+        public
+    */
     
     function setBnbFee(uint bnbFee_) external onlyController {
         _random.setBnbFee(bnbFee_);

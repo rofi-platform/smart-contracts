@@ -191,7 +191,6 @@ contract RandomFee {
 
     function _takeFee()
         internal
-        returns(uint)
     {
         uint added = _updateWbnbBalance();
         require(added >= _bnbFee, "RandomFee: not enough for fee");
@@ -243,7 +242,7 @@ contract Random is VRFConsumerBase, IRandom, RandomFee {
         VRFConsumerBase(
             0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31,
             0x404460C6A5EdE2D891e8297795264fDe62ADBB75
-        ) public
+        )
     {
         keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c;
         fee = 0.2 * 10 ** 18;

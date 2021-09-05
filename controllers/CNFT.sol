@@ -8,6 +8,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/INFT.sol";
 
 contract CNFT is Ownable {
+    modifier onlyPaidFee {
+        address random = nftContract.random();
+        random.call{value: msg.value}(new bytes(0));
+        _;
+    }
     IERC20 public paymentToken;
     INFT public nftContract;
 
@@ -33,11 +38,13 @@ contract CNFT is Ownable {
         nftContract.setBnbFee(bnbFee_);
     }
 
-    function spawn() external payable {
+    function genesisSpawn() external payable onlyPaidFee {
+        nftContract.spawn(msg.sender, true);
+    }
+
+    function spawn() external payable onlyPaidFee {
         paymentToken.transferFrom(msg.sender, deadAddress, eggPrice);
-        address random = nftContract.random();
-        random.call{value: msg.value}(new bytes(0));
-        nftContract.spawn(msg.sender);
+        nftContract.spawn(msg.sender, false);
     }
 
     function getStarFromRandomness(uint256 _randomness) external pure returns(uint8) {

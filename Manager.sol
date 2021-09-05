@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IUseController.sol";
 
 contract Manager is Ownable {
-    using SafeMath for uint256;
     
     mapping(address => address) private _controllerOf;
 
@@ -27,7 +26,7 @@ contract Manager is Ownable {
         internal
     {
         IUseController(target_).updateController(controller_);
-        _controllerOf(target_) = controller_;
+        _controllerOf[target_] = controller_;
     }
 
     /*
