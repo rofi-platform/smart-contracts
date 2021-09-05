@@ -3,12 +3,13 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/ICNFT";
 
 interface FactoryInterface {
     function spawn(address sender) external;
 }
 
-contract CNFT {
+contract CNFT is ICNFT {
     IERC20 public paymentToken;
     FactoryInterface public factoryContract;
 
@@ -36,6 +37,10 @@ contract CNFT {
         if (seed < 98) {
             return 5;
         }
+        return 6;
+    }
+
+    function getTotalHeroTypes() external pure returns (uint8) {
         return 6;
     }
 }

@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 import "./modules/NFT/Random.sol";
 import "./modules/UseController.sol";
+import "./interfaces/ICNFT.sol";
 
 contract NFT is ERC721, Ownable, UseController {
     using SafeMath for uint256;
@@ -29,7 +30,8 @@ contract NFT is ERC721, Ownable, UseController {
     
     mapping(uint256 => Hero) internal heros;
     
-    event Spawn(uint256 indexed tokenId, uint8 heroType, address to);
+    event Spawn(uint256 indexed tokenId, address to);
+    event InitHero(uint256 indexed tokenId, uint8 star, uint8 heroType, bytes32 dna);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
     
     Random public random;
@@ -78,23 +80,19 @@ contract NFT is ERC721, Ownable, UseController {
 
     function submitRandomness(uint _tokenId, uint _randomness) external onlyRandom {
         bytes32 dna = bytes32(keccak256(abi.encodePacked(_tokenId, _randomness)));
-        uint8 star = _starFactory.getStarFromRandomness(_randomness);
-        _initHero(_tokenId, star, dna);
+        uint8 star = ICNFT(controller()).getStarFromRandomness(_randomness);
+        uint8 totalHeroTypes = ICNFT(controller()).getTotalHeroTypes();
+        uint8 heroType = uint8(_randomness.mod(totalHeroTypes).add(1));
+        _initHero(_tokenId, star, dna, heroType);
     }
     
     function spawn(address to, bool _isGenesis) public onlyController {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
-        uint _randomNumber = _getRandomNumber();
-        
-        uint8 _totalHeroTypes = _getTotalHeroTypes();
-        
-        uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
-        
         heros[nextTokenId] = Hero({
             star: 0,
-            heroType: _heroType,
+            heroType: 0,
             dna: '',
             isGenesis: _isGenesis,
             bornAt: block.timestamp
@@ -102,7 +100,7 @@ contract NFT is ERC721, Ownable, UseController {
         
         random.requestRandomNumber(nextTokenId);
         
-        emit Spawn(nextTokenId, _heroType, to);
+        emit Spawn(nextTokenId, to);
     }
     
     function updateMerkleRoots(bytes32 _merkleRoot) public onlyOwner {
@@ -127,19 +125,16 @@ contract NFT is ERC721, Ownable, UseController {
         latestTokenId++;
     }
     
-    function _getRandomNumber() private returns (uint) {
-        nonce += 1;
-        return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
-    }
-    
-    function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna) private {
+    function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna, uint8 _heroType) private {
         Hero storage hero = heros[_tokenId];
         require(hero.star == 0, "require: star 0");
+        require(hero.heroType == 0, "require: heroType 0");
 
         hero.star = _star;
         hero.dna = _dna;
+        hero.heroType = _heroType;
 
-        emit ChangeStar(_tokenId, _star);
+        emit InitHero(_tokenId, _star, _heroType, _dna);
     }
     
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./RandomInterface.sol";
+import "../../interfaces/IRandom.sol";
 
 interface IRandomRequester {
     function submitRandomness(uint _tokenId, uint _randomness) external;
@@ -232,7 +232,7 @@ contract RandomFee {
     }
 }
 
-contract Random is VRFConsumerBase, RandomInterface, RandomFee {
+contract Random is VRFConsumerBase, IRandom, RandomFee {
     using SafeMath for uint256;
     
     uint256 private constant IN_PROGRESS = 42;
