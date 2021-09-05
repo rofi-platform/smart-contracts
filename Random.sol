@@ -168,7 +168,7 @@ contract RandomFee {
     address private _linkAddress;
     address private _peggedLinkAddress;
 
-    uint private _bnbFee;
+    uint public _bnbFee;
     uint private _lastWbnbBalance;
 
     constructor(

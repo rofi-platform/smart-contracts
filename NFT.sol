@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -16,12 +14,13 @@ import "./StarFactory.sol";
 
 contract NFT is ERC721, Ownable {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
     
     struct Hero {
         uint8 star;
         uint8 heroType;
+        bytes32 dna;
+        bool isGenesis;
         uint256 bornAt;
     }
     
@@ -94,8 +93,9 @@ contract NFT is ERC721, Ownable {
     }
 
     function submitRandomness(uint _tokenId, uint _randomness) external onlyRandom {
+        bytes32 dna = bytes32(keccak256(abi.encodePacked(_tokenId, _randomness)));
         uint8 star = _starFactory.getStarFromRandomness(_randomness);
-        _initStar(_tokenId, star);
+        _initHero(_tokenId, star, dna);
     }
     
     function spawn(address to) public onlySpawner {
@@ -111,6 +111,31 @@ contract NFT is ERC721, Ownable {
         heros[nextTokenId] = Hero({
             star: 0,
             heroType: _heroType,
+            dna: '',
+            isGenesis: false,
+            bornAt: block.timestamp
+        });
+        
+        random.requestRandomNumber(nextTokenId);
+        
+        emit Spawn(nextTokenId, _heroType, to);
+    }
+    
+    function genesisSpawn(address to, bool _isGenesis) public onlySpawner {
+        uint256 nextTokenId = _getNextTokenId();
+        _mint(to, nextTokenId);
+        
+        uint _randomNumber = _getRandomNumber();
+        
+        uint8 _totalHeroTypes = _getTotalHeroTypes();
+        
+        uint8 _heroType = uint8(_randomNumber.mod(_totalHeroTypes).add(1));
+        
+        heros[nextTokenId] = Hero({
+            star: 0,
+            heroType: _heroType,
+            dna: '',
+            isGenesis: _isGenesis,
             bornAt: block.timestamp
         });
         
@@ -157,11 +182,12 @@ contract NFT is ERC721, Ownable {
         return manager.totalHeroTypes();
     }
     
-    function _initStar(uint256 _tokenId, uint8 _star) private {
+    function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna) private {
         Hero storage hero = heros[_tokenId];
         require(hero.star == 0, "require: star 0");
 
         hero.star = _star;
+        hero.dna = _dna;
 
         emit ChangeStar(_tokenId, _star);
     }
