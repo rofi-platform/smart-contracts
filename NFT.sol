@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 import "./modules/NFT/Random.sol";
 import "./modules/UseController.sol";
-import "./interfaces/ICNFT.sol";
+import "./interfaces/controllers/ICNFT.sol";
 
 contract NFT is ERC721, Ownable, UseController {
     using SafeMath for uint256;
@@ -34,7 +34,7 @@ contract NFT is ERC721, Ownable, UseController {
     event InitHero(uint256 indexed tokenId, uint8 star, uint8 heroType, bytes32 dna);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
     
-    Random public random;
+    Random private _random;
     
     bytes32 merkleRoot;
     
@@ -52,11 +52,11 @@ contract NFT is ERC721, Ownable, UseController {
         ERC721(_name, _symbol)
         UseController(_manager, _initController)
     {
-        random = new Random();
+        _random = new Random();
     }
     
     modifier onlyRandom {
-        require(msg.sender == address(random), "require Random.");
+        require(msg.sender == address(_random), "require Random.");
         _;
     }
     
@@ -65,9 +65,29 @@ contract NFT is ERC721, Ownable, UseController {
         
         _incrementTokenId();
     }
+
+    function _getNextTokenId() private view returns (uint256) {
+        return latestTokenId.add(1);
+    }
+    
+    function _incrementTokenId() private {
+        latestTokenId++;
+    }
+    
+    function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna, uint8 _heroType) private {
+        Hero storage hero = heros[_tokenId];
+        require(hero.star == 0, "require: star 0");
+        require(hero.heroType == 0, "require: heroType 0");
+
+        hero.star = _star;
+        hero.dna = _dna;
+        hero.heroType = _heroType;
+
+        emit InitHero(_tokenId, _star, _heroType, _dna);
+    }
     
     function setBnbFee(uint bnbFee_) external onlyController {
-        random.setBnbFee(bnbFee_);
+        _random.setBnbFee(bnbFee_);
     }
     
     function upgrade(uint256 _tokenId, uint8 _star) public onlyController {
@@ -98,7 +118,7 @@ contract NFT is ERC721, Ownable, UseController {
             bornAt: block.timestamp
         });
         
-        random.requestRandomNumber(nextTokenId);
+        _random.requestRandomNumber(nextTokenId);
         
         emit Spawn(nextTokenId, to);
     }
@@ -116,25 +136,12 @@ contract NFT is ERC721, Ownable, UseController {
     function getHero(uint256 _tokenId) public view returns (Hero memory) {
         return heros[_tokenId];
     }
-    
-    function _getNextTokenId() private view returns (uint256) {
-        return latestTokenId.add(1);
-    }
-    
-    function _incrementTokenId() private {
-        latestTokenId++;
-    }
-    
-    function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna, uint8 _heroType) private {
-        Hero storage hero = heros[_tokenId];
-        require(hero.star == 0, "require: star 0");
-        require(hero.heroType == 0, "require: heroType 0");
 
-        hero.star = _star;
-        hero.dna = _dna;
-        hero.heroType = _heroType;
-
-        emit InitHero(_tokenId, _star, _heroType, _dna);
+    function random()
+        external
+        view
+        returns(address)
+    {
+        return address(_random);
     }
-    
 }
