@@ -8,11 +8,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-import "./Random.sol";
-import "./ManagerInterface.sol";
-import "./StarFactory.sol";
+import "./modules/NFT/Random.sol";
+import "./modules/UseController.sol";
 
-contract NFT is ERC721, Ownable {
+contract NFT is ERC721, Ownable, UseController {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
     
@@ -35,38 +34,23 @@ contract NFT is ERC721, Ownable {
     
     Random public random;
     
-    ManagerInterface private manager;
-    
-    StarFactory private _starFactory;
-
     bytes32 merkleRoot;
     
     event MerkleRootUpdated(bytes32 merkleRoot);
     
+    /*
+        _initController: CNFT address
+    */
     constructor(
         string memory _name,
         string memory _symbol,
-        address _manager
-    ) ERC721(_name, _symbol)
+        address _manager,
+        address _initController
+    )
+        ERC721(_name, _symbol)
+        UseController(_manager, _initController)
     {
         random = new Random();
-        manager = ManagerInterface(_manager);
-        _starFactory = new StarFactory();
-    }
-    
-    modifier onlyManager {
-        require(msg.sender == address(manager), "require Manager.");
-        _;
-    }
-    
-    modifier onlySpawner {
-        require(manager.spawners(msg.sender), "require Spawner.");
-        _;
-    }
-    
-    modifier onlyUpgrader {
-        require(manager.upgraders(msg.sender), "require Upgrader.");
-        _;
     }
     
     modifier onlyRandom {
@@ -80,11 +64,11 @@ contract NFT is ERC721, Ownable {
         _incrementTokenId();
     }
     
-    function setBnbFee(uint bnbFee_) external onlyManager {
+    function setBnbFee(uint bnbFee_) external onlyController {
         random.setBnbFee(bnbFee_);
     }
     
-    function upgrade(uint256 _tokenId, uint8 _star) public onlyUpgrader {
+    function upgrade(uint256 _tokenId, uint8 _star) public onlyController {
         Hero storage hero = heros[_tokenId];
         
         hero.star = _star;
@@ -98,7 +82,7 @@ contract NFT is ERC721, Ownable {
         _initHero(_tokenId, star, dna);
     }
     
-    function spawn(address to, bool _isGenesis) public onlySpawner {
+    function spawn(address to, bool _isGenesis) public onlyController {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to, nextTokenId);
         
@@ -148,10 +132,6 @@ contract NFT is ERC721, Ownable {
         return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
     }
     
-    function _getTotalHeroTypes() private returns (uint8) {
-        return manager.totalHeroTypes();
-    }
-    
     function _initHero(uint256 _tokenId, uint8 _star, bytes32 _dna) private {
         Hero storage hero = heros[_tokenId];
         require(hero.star == 0, "require: star 0");
@@ -162,7 +142,4 @@ contract NFT is ERC721, Ownable {
         emit ChangeStar(_tokenId, _star);
     }
     
-    function changeStarFactory(address starFactory_) external onlyManager {
-        _starFactory = StarFactory(starFactory_);
-    }
 }

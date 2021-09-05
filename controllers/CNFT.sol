@@ -8,7 +8,7 @@ interface FactoryInterface {
     function spawn(address sender) external;
 }
 
-contract StarterPack {
+contract CNFT {
     IERC20 public paymentToken;
     FactoryInterface public factoryContract;
 
@@ -20,8 +20,22 @@ contract StarterPack {
         paymentToken = IERC20(paymentTokenAddress_);
     }
 
-    function spawn() public {
+    function spawn() external payable {
         paymentToken.transferFrom(msg.sender, deadAddress, eggPrice);
         factoryContract.spawn(msg.sender);
+    }
+
+    function getStarFromRandomness(uint256 _randomness) external pure returns(uint8) {
+        uint seed = _randomness % 100;
+        if (seed < 65) {
+            return 3;
+        }
+        if (seed < 90) {
+            return 4;
+        }
+        if (seed < 98) {
+            return 5;
+        }
+        return 6;
     }
 }
