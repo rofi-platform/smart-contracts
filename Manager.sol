@@ -30,6 +30,10 @@ contract Manager is Ownable {
         _controllerOf(target_) = controller_;
     }
 
+    /*
+        public
+    */
+
     function updateManager(
         address target_,
         address controller_
