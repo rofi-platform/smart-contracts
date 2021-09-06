@@ -13,4 +13,9 @@ interface IRandomRequester {
         external
         view
         returns(address);
+
+    function owner()
+        external
+        view
+        returns(address);
 }
