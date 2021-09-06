@@ -27,6 +27,8 @@ contract CNFT is Ownable {
 
     bool private _isGenesisActive = true;
 
+    uint8 private totalHeroTypes = 6;
+
     constructor(
         address paymentTokenAddress_,
         address nftContractAddress_
@@ -81,7 +83,11 @@ contract CNFT is Ownable {
     }
 
     function getTotalHeroTypes() external pure returns (uint8) {
-        return 6;
+        return totalHeroTypes;
+    }
+
+    function setGenesisActive(uint8 _totalHeroTypes) external onlyOwner {
+        totalHeroTypes = _totalHeroTypes;
     }
 
     function isGenesisActive()
