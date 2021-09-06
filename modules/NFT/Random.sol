@@ -226,6 +226,8 @@ contract Random is VRFConsumerBase, IRandom, RandomFee {
     
     uint256 public fee;
     
+    address owner;
+    
     mapping(bytes32 => uint256) tokens;
     
     mapping(uint256 => uint256) results;
@@ -277,11 +279,11 @@ contract Random is VRFConsumerBase, IRandom, RandomFee {
         return results[tokenId];
     }
     
-    function withdrawBnb() public {
-        LHelper.transferBnb(tx.origin, 0);
-    }
+    // function withdrawBnb() public {
+    //     LHelper.transferBnb(tx.origin, 0);
+    // }
 
-    function withdrawToken(address token_) public {
-        LHelper.transferToken(token_, tx.origin, 0);
-    }
+    // function withdrawToken(address token_) public {
+    //     LHelper.transferToken(token_, tx.origin, 0);
+    // }
 }
