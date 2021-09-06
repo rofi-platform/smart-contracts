@@ -53,8 +53,16 @@ contract CNFT is Ownable {
         _isGenesisActive = isActive_;
     }
 
+    function command(address dest_, uint value_, bytes memory data_) external onlyOwner returns (bool success) {
+        (success, ) = address(dest_).call{value: value_}(data_);
+    }
+
     function setBnbFee(uint bnbFee_) external onlyOwner {
         nftContract.setBnbFee(bnbFee_);
+    }
+
+    function upgrade(uint256 _tokenId, uint8 _star) external  onlyOwner {
+        nftContract.upgrade(_tokenId, _star);
     }
 
     function genesisSpawn() external payable onlyPaidFee onlyGenesisActive {
