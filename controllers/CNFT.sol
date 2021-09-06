@@ -57,6 +57,14 @@ contract CNFT is Ownable {
         (success, ) = address(dest_).call{value: value_}(data_);
     }
 
+    function ban(uint tokenId_, string memory reason_) external onlyOwner {
+        nftContract.ban(tokenId_, reason_);
+    }
+
+    function unban(uint tokenId_, string memory reason_) external onlyOwner {
+        nftContract.unban(tokenId_, reason_);
+    }
+
     function setBnbFee(uint bnbFee_) external onlyOwner {
         nftContract.setBnbFee(bnbFee_);
     }
@@ -90,7 +98,7 @@ contract CNFT is Ownable {
         return 6;
     }
 
-    function getTotalHeroTypes() external pure returns (uint8) {
+    function getTotalHeroTypes() external view returns (uint8) {
         return totalHeroTypes;
     }
 

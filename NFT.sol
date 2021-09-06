@@ -12,7 +12,86 @@ import "./modules/NFT/Random.sol";
 import "./modules/UseController.sol";
 import "./interfaces/controllers/ICNFT.sol";
 
-contract NFT is ERC721, Ownable, UseController {
+contract BannableERC721  is ERC721 {
+    event Ban(uint indexed tokenId, string reason);
+    event Unban(uint indexed tokenId, string reason);
+
+    modifier onlyNotBanned(
+        uint tokenId_
+    )
+    {
+        require(!_isBanned[tokenId_], "BannableERC721: banned!");
+        _;
+    }
+
+    modifier onlyBanned(
+        uint tokenId_
+    )
+    {
+        require(_isBanned[tokenId_], "BannableERC721: not banned!");
+        _;
+    }
+
+    mapping(uint => bool) private _isBanned;
+
+    constructor(
+        string memory _name,
+        string memory _symbol
+    )
+        ERC721(_name, _symbol)
+    {
+    }
+
+    function _ban(
+        uint tokenId_,
+        string memory reason_
+    )
+        internal
+        onlyNotBanned(tokenId_)
+    {
+        _isBanned[tokenId_] = true;
+        emit Ban(tokenId_, reason_);
+    }
+
+    function _unban(
+        uint tokenId_,
+        string memory reason_
+    )
+        internal
+        onlyBanned(tokenId_)
+    {
+        _isBanned[tokenId_] = false;
+        emit Unban(tokenId_, reason_);
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 tokenId
+    )
+        internal
+        override
+        onlyNotBanned(tokenId)
+    {
+        super._transfer(from, to, tokenId);
+    }
+
+    /*
+        public
+    */
+
+    function isBanned(
+        uint tokenId_
+    )
+        public
+        view
+        returns(bool)
+    {
+        return _isBanned[tokenId_];
+    }
+}
+
+contract NFT is BannableERC721, Ownable, UseController {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
     
@@ -49,7 +128,7 @@ contract NFT is ERC721, Ownable, UseController {
         string memory _symbol,
         address _manager
     )
-        ERC721(_name, _symbol)
+        BannableERC721(_name, _symbol)
         UseController(_manager)
     {
         _random = new Random();
@@ -90,6 +169,14 @@ contract NFT is ERC721, Ownable, UseController {
     /*
         public
     */
+
+    function ban(uint tokenId_, string memory reason_) external onlyController {
+        _ban(tokenId_, reason_);
+    }
+
+    function unban(uint tokenId_, string memory reason_) external onlyController {
+        _unban(tokenId_, reason_);
+    }
     
     function setBnbFee(uint bnbFee_) external onlyController {
         _random.setBnbFee(bnbFee_);
