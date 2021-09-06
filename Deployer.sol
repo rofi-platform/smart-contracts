@@ -37,4 +37,8 @@ contract Deployer {
         controller = new CNFT(address(token), address(nft));
         controller.transferOwnership(sender);
     }
+    
+    function result() public view returns (address _manager, address _nft, address _controller){
+        return (address(manager), address(nft), address(controller));
+    }
 }

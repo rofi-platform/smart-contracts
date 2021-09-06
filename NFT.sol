@@ -33,6 +33,7 @@ contract NFT is ERC721, Ownable, UseController {
     event Spawn(uint256 indexed tokenId, address to);
     event InitHero(uint256 indexed tokenId, uint8 star, uint8 heroType, bytes32 dna);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
+    event NewRandom(address _newRandom);
     
     Random private _random;
     
@@ -131,6 +132,12 @@ contract NFT is ERC721, Ownable, UseController {
         merkleRoot = _merkleRoot;
 
         emit MerkleRootUpdated(merkleRoot);
+    }
+
+    function updateRandom(address payable _newRandom) public onlyOwner {
+        _random = Random(_newRandom);
+
+        emit NewRandom(_newRandom);
     }
     
     function verifyMerkleProof(bytes32[] memory _proof, bytes32 _leaf) public view returns (bool valid) {
