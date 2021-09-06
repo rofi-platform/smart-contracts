@@ -94,7 +94,7 @@ contract CNFT is Ownable {
         return totalHeroTypes;
     }
 
-    function setGenesisActive(uint8 _totalHeroTypes) external onlyOwner {
+    function setTotalHeroTypes(uint8 _totalHeroTypes) external onlyOwner {
         totalHeroTypes = _totalHeroTypes;
     }
 
