@@ -137,15 +137,15 @@ contract CNFT is Ownable, IHero {
     }
     
     function startBreed(uint256 _tokenId1, uint256 _tokenId2) public {
-        require(nftContract.ownerOf(_tokenId1) == _msgSender(), "require: owner");
-        require(nftContract.ownerOf(_tokenId2) == _msgSender(), "require: owner");
+        require(nftContract.ownerOf(_tokenId1) == _msgSender(), "not owner");
+        require(nftContract.ownerOf(_tokenId2) == _msgSender(), "not owner");
 
         Hero memory hero1 = nftContract.getHero(_tokenId1);
 		Hero memory hero2 = nftContract.getHero(_tokenId2);
 
 		uint8 hero1Sex = getSex(hero1.heroType);
 		uint8 hero2Sex = getSex(hero2.heroType);
-		require(hero1Sex + hero2Sex == 1, "require: one male and one female");
+		require(hero1Sex + hero2Sex == 1, "need one male & one female");
 
 		nftContract.transferFrom(_msgSender(), address(this), _tokenId1);
 		nftContract.transferFrom(_msgSender(), address(this), _tokenId2);
@@ -176,11 +176,11 @@ contract CNFT is Ownable, IHero {
 
 	function giveBirth(uint256 _breedId) public {
 		Breed storage breed = breeds[_breedId];
-		require(breed.owner == _msgSender(), "require: owner");
-		require(nftContract.ownerOf(breed.tokenId1) == address(this), "require: owner");
-        require(nftContract.ownerOf(breed.tokenId2) == address(this), "require: owner");
+		require(breed.owner == _msgSender(), "not owner");
+		require(nftContract.ownerOf(breed.tokenId1) == address(this), "not owner");
+        require(nftContract.ownerOf(breed.tokenId2) == address(this), "not owner");
         // Comment on testing
-// 		require(breed.startAt + breed.breedingPeriod >= block.timestamp, "require: not enough breeding time");
+// 		require(breed.startAt + breed.breedingPeriod <= block.timestamp, "require: not enough breeding time");
 		spawn(_msgSender(), breed.newHeroStar);
 		uint256 newTokenId = nftContract.latestTokenId();
 		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId1);
@@ -202,7 +202,7 @@ contract CNFT is Ownable, IHero {
 	
 	function getBreedingPeriod(uint256 _bornAt, bool _isGenesis) private view returns (uint256) {
 	    uint256 lifeTime = uint256(block.timestamp - _bornAt);
-	    uint256 breedingPeriod = _isGenesis ? 864000 : Math.min(lifeTime.div(864000).mul(5), 120);
+	    uint256 breedingPeriod = _isGenesis ? 10 days : Math.min( 10 days + lifeTime.div(10 days).mul(5 days), 120 days);
 	    return breedingPeriod;
 	}
 	
