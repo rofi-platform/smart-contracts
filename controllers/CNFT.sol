@@ -45,7 +45,9 @@ contract CNFT is Ownable, IHero {
 
 	mapping(uint256 => Breed) internal breeds;
 
-	event Pregnant(address owner, uint256 breedId);
+    mapping(uint8 => uint8) internal genders;
+
+	event Pregnant(address owner, uint256 tokenId1, uint256 tokenId2, uint256 breedingPeriod, uint256 breedId);
 
 	event GiveBirth(address owner, uint256 tokenId);
 
@@ -136,15 +138,15 @@ contract CNFT is Ownable, IHero {
         isActive = _isGenesisActive;
     }
     
-    function startBreed(uint256 _tokenId1, uint256 _tokenId2) public {
+    function startBreed(uint256 _tokenId1, uint256 _tokenId2) external {
         require(nftContract.ownerOf(_tokenId1) == _msgSender(), "not owner");
         require(nftContract.ownerOf(_tokenId2) == _msgSender(), "not owner");
 
         Hero memory hero1 = nftContract.getHero(_tokenId1);
 		Hero memory hero2 = nftContract.getHero(_tokenId2);
 
-		uint8 hero1Sex = getSex(hero1.heroType);
-		uint8 hero2Sex = getSex(hero2.heroType);
+		uint8 hero1Sex = genders[hero1.heroType];
+		uint8 hero2Sex = genders[hero2.heroType];
 		require(hero1Sex + hero2Sex == 1, "need one male & one female");
 
 		nftContract.transferFrom(_msgSender(), address(this), _tokenId1);
@@ -152,10 +154,7 @@ contract CNFT is Ownable, IHero {
 
 		uint8 hero1Star = hero1.star;
 		uint8 hero2Star = hero2.star;
-		uint8 _newHeroStar = hero1Star < hero2Star ? hero1Star : hero2Star;
-		if (_newHeroStar < 3) {
-			_newHeroStar = 3;
-		}
+		uint8 _newHeroStar = Math.min(Math.min(hero1Star, hero2Star), 3);
 		
 		uint256 hero1BreedingPeriod = getBreedingPeriod(hero1.bornAt, hero1.isGenesis);
 		uint256 hero2BreedingPeriod = getBreedingPeriod(hero2.bornAt, hero2.isGenesis);
@@ -171,16 +170,16 @@ contract CNFT is Ownable, IHero {
 			breedingPeriod: _breedingPeriod,
 			startAt: block.timestamp
 		});
-		emit Pregnant(_msgSender(), nextBreedId);
+		emit Pregnant(_msgSender(), tokenId1, tokenId2, breedingPeriod, nextBreedId);
     }
 
-	function giveBirth(uint256 _breedId) public {
+	function giveBirth(uint256 _breedId) external {
 		Breed storage breed = breeds[_breedId];
 		require(breed.owner == _msgSender(), "not owner");
 		require(nftContract.ownerOf(breed.tokenId1) == address(this), "not owner");
         require(nftContract.ownerOf(breed.tokenId2) == address(this), "not owner");
         // Comment on testing
-// 		require(breed.startAt + breed.breedingPeriod <= block.timestamp, "require: not enough breeding time");
+// 		require(breed.startAt + breed.breedingPeriod <= block.timestamp, "not enough breeding time");
 		spawn(_msgSender(), breed.newHeroStar);
 		uint256 newTokenId = nftContract.latestTokenId();
 		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId1);
@@ -190,14 +189,6 @@ contract CNFT is Ownable, IHero {
 	
 	function getBreed(uint256 _breedId) public view returns (Breed memory) {
 	    return breeds[_breedId];
-	}
-
-	function getSex(uint8 _heroType) private view returns (uint8) {
-		if (_heroType == 3 || _heroType == 5) {
-			return 0;
-		}
-
-		return 1;
 	}
 	
 	function getBreedingPeriod(uint256 _bornAt, bool _isGenesis) private view returns (uint256) {
