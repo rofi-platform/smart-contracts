@@ -49,7 +49,7 @@ contract CNFT is Ownable, IHero {
 
 	event Pregnant(address owner, uint256 tokenId1, uint256 tokenId2, uint256 breedingPeriod, uint256 breedId);
 
-	event GiveBirth(address owner, uint256 tokenId);
+	event GiveBirth(address owner, uint256 tokenId1, uint256 tokenId2, uint256 tokenId);
 
 	uint256 private _lastBreedId;
 
@@ -184,7 +184,7 @@ contract CNFT is Ownable, IHero {
 		uint256 newTokenId = nftContract.latestTokenId();
 		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId1);
 		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId2);
-		emit GiveBirth(_msgSender(), newTokenId);
+		emit GiveBirth(_msgSender(), breed.tokenId1, breed.tokenId2, newTokenId);
 	}
 	
 	function getBreed(uint256 _breedId) public view returns (Breed memory) {
