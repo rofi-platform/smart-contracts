@@ -186,6 +186,10 @@ contract CNFT is Ownable, IHero {
 		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId2);
 		emit GiveBirth(_msgSender(), breed.tokenId1, breed.tokenId2, newTokenId);
 	}
+
+    function updateGender(uint8 _heroType, uint8 _gender) external onlyOwner {
+        genders[_heroType] = _gender;
+    }
 	
 	function getBreed(uint256 _breedId) public view returns (Breed memory) {
 	    return breeds[_breedId];
