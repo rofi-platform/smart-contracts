@@ -4,15 +4,10 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../interfaces/INFT.sol";
-import "../interfaces/IHero.sol";
 
-contract CNFT is Ownable, IHero {
-    using SafeMath for uint256;
-    
+contract CNFT is Ownable {
     modifier onlyPaidFee {
         address random = nftContract.random();
         random.call{value: msg.value}(new bytes(0));
@@ -23,7 +18,7 @@ contract CNFT is Ownable, IHero {
         require(_isGenesisActive, "CNFT: genesis spawn disabled!");
         _;
     }
-
+    
     IERC20 public paymentToken;
     INFT public nftContract;
 
@@ -34,24 +29,12 @@ contract CNFT is Ownable, IHero {
 
     uint8 private totalHeroTypes = 6;
     
-    struct Breed {
-		address owner;
-		uint256 tokenId1;
-		uint256 tokenId2;
-		uint8 newHeroStar;
-		uint256 breedingPeriod;
-		uint256 startAt;
-	}
-
-	mapping(uint256 => Breed) internal breeds;
-
-    mapping(uint8 => uint8) internal genders;
-
-	event Pregnant(address owner, uint256 tokenId1, uint256 tokenId2, uint256 breedingPeriod, uint256 breedId);
-
-	event GiveBirth(address owner, uint256 tokenId1, uint256 tokenId2, uint256 tokenId);
-
-	uint256 private _lastBreedId;
+    mapping (address => bool) _spawners;
+    
+    modifier onlySpawner {
+        require(_spawners[msg.sender] || owner() == msg.sender, "require Spawner");
+        _;
+    }
 
     constructor(
         address paymentTokenAddress_,
@@ -103,7 +86,7 @@ contract CNFT is Ownable, IHero {
         nftContract.spawn(msg.sender, _isGenesis, uint8(0));
     }
 
-    function spawn(address to_, uint8 star_) public payable onlyPaidFee onlyOwner {
+    function spawn(address to_, uint8 star_) external payable onlyPaidFee onlySpawner {
         bool _isGenesis = false;
         nftContract.spawn(to_, _isGenesis, star_);
     }
@@ -138,84 +121,15 @@ contract CNFT is Ownable, IHero {
         isActive = _isGenesisActive;
     }
     
-    function startBreed(uint256 _tokenId1, uint256 _tokenId2) external {
-        require(nftContract.ownerOf(_tokenId1) == _msgSender(), "not owner");
-        require(nftContract.ownerOf(_tokenId2) == _msgSender(), "not owner");
-
-        Hero memory hero1 = nftContract.getHero(_tokenId1);
-		Hero memory hero2 = nftContract.getHero(_tokenId2);
-
-		uint8 hero1Sex = genders[hero1.heroType];
-		uint8 hero2Sex = genders[hero2.heroType];
-		require(hero1Sex + hero2Sex == 1, "need one male & one female");
-
-		nftContract.transferFrom(_msgSender(), address(this), _tokenId1);
-		nftContract.transferFrom(_msgSender(), address(this), _tokenId2);
-
-		uint8 hero1Star = hero1.star;
-		uint8 hero2Star = hero2.star;
-		uint8 _newHeroStar = Math.min(Math.min(hero1Star, hero2Star), 3);
-		
-		uint256 hero1BreedingPeriod = getBreedingPeriod(hero1.bornAt, hero1.isGenesis);
-		uint256 hero2BreedingPeriod = getBreedingPeriod(hero2.bornAt, hero2.isGenesis);
-		uint256 _breedingPeriod = Math.max(hero1BreedingPeriod, hero2BreedingPeriod);
-		
-		uint256 nextBreedId = _getNextBreedId();
-		_incrementBreedId();
-		breeds[nextBreedId] = Breed({
-			owner: _msgSender(),
-			tokenId1: _tokenId1,
-			tokenId2: _tokenId2,
-			newHeroStar: _newHeroStar,
-			breedingPeriod: _breedingPeriod,
-			startAt: block.timestamp
-		});
-		emit Pregnant(_msgSender(), tokenId1, tokenId2, breedingPeriod, nextBreedId);
-    }
-
-	function giveBirth(uint256 _breedId) external {
-		Breed storage breed = breeds[_breedId];
-		require(breed.owner == _msgSender(), "not owner");
-		require(nftContract.ownerOf(breed.tokenId1) == address(this), "not owner");
-        require(nftContract.ownerOf(breed.tokenId2) == address(this), "not owner");
-        // Comment on testing
-// 		require(breed.startAt + breed.breedingPeriod <= block.timestamp, "not enough breeding time");
-		spawn(_msgSender(), breed.newHeroStar);
-		uint256 newTokenId = nftContract.latestTokenId();
-		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId1);
-		nftContract.transferFrom(address(this), _msgSender(), breed.tokenId2);
-		emit GiveBirth(_msgSender(), breed.tokenId1, breed.tokenId2, newTokenId);
-	}
-
-    function updateGender(uint8 _heroType, uint8 _gender) external onlyOwner {
-        genders[_heroType] = _gender;
-    }
-	
-	function getBreed(uint256 _breedId) public view returns (Breed memory) {
-	    return breeds[_breedId];
-	}
-	
-	function getBreedingPeriod(uint256 _bornAt, bool _isGenesis) private view returns (uint256) {
-	    uint256 lifeTime = uint256(block.timestamp - _bornAt);
-	    uint256 breedingPeriod = _isGenesis ? 10 days : Math.min( 10 days + lifeTime.div(10 days).mul(5 days), 120 days);
-	    return breedingPeriod;
-	}
-	
-	// Only for test
-	function transferBack(uint256 _tokenId1, uint256 _tokenId2) public {
-	    nftContract.transferFrom(address(this), _msgSender(), _tokenId1);
-		nftContract.transferFrom(address(this), _msgSender(), _tokenId2);
-	}
-	
-	function _getNextBreedId() private view returns (uint256) {
-        return _lastBreedId.add(1);
+    function spawners(address _address) external view returns (bool) {
+        return _spawners[_address];
     }
     
-    function _incrementBreedId() private {
-        _lastBreedId++;
+    function addSpawner(address _address) external onlyOwner {
+        _spawners[_address] = true;
     }
     
-    function latestBreedId() external view returns(uint) {
-        return _lastBreedId;
+    function removeSpawner(address _address) external onlyOwner {
+        _spawners[_address] = false;
     }
 }
