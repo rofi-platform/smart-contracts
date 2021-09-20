@@ -1,21 +1,5 @@
 [
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_nft",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_cnft",
-				"type": "address"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -40,6 +24,12 @@
 				"indexed": false,
 				"internalType": "uint256",
 				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "breedId",
 				"type": "uint256"
 			}
 		],
@@ -110,105 +100,9 @@
 				"type": "uint256"
 			}
 		],
-		"name": "getBreed",
-		"outputs": [
-			{
-				"components": [
-					{
-						"internalType": "address",
-						"name": "owner",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenId1",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "tokenId2",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint8",
-						"name": "newHeroStar",
-						"type": "uint8"
-					},
-					{
-						"internalType": "uint256",
-						"name": "breedingPeriod",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "startAt",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct Breeding.Breed",
-				"name": "",
-				"type": "tuple"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint8",
-				"name": "_heroType",
-				"type": "uint8"
-			}
-		],
-		"name": "getGender",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_breedId",
-				"type": "uint256"
-			}
-		],
 		"name": "giveBirth",
 		"outputs": [],
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "latestBreedId",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -283,6 +177,118 @@
 		"name": "updateGender",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_nft",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_cnft",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_breedId",
+				"type": "uint256"
+			}
+		],
+		"name": "getBreed",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "tokenId1",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "tokenId2",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint8",
+						"name": "newHeroStar",
+						"type": "uint8"
+					},
+					{
+						"internalType": "uint256",
+						"name": "breedingPeriod",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "startAt",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct Breeding.Breed",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "_heroType",
+				"type": "uint8"
+			}
+		],
+		"name": "getGender",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "latestBreedId",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	}
 ]

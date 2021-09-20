@@ -58,7 +58,7 @@ contract Breeding is IHero, Ownable {
 
 	event Pregnant(address owner, uint256 tokenId1, uint256 tokenId2, uint256 breedingPeriod, uint256 breedId);
 
-	event GiveBirth(address owner, uint256 tokenId1, uint256 tokenId2, uint256 tokenId);
+	event GiveBirth(address owner, uint256 tokenId1, uint256 tokenId2, uint256 tokenId, uint256 breedId);
 
 	uint256 private _lastBreedId;
     
@@ -81,12 +81,17 @@ contract Breeding is IHero, Ownable {
 		nft.transferFrom(_msgSender(), address(this), _tokenId1);
 		nft.transferFrom(_msgSender(), address(this), _tokenId2);
 
-		uint8 hero1Star = hero1.star;
-		uint8 hero2Star = hero2.star;
-		uint8 _newHeroStar = uint8(Math.min(Math.min(hero1Star, hero2Star), 3));
+		uint8 _newHeroStar;
+		if (hero1.isGenesis && hero2.isGenesis) {
+    		_newHeroStar = uint8(Math.min(Math.min(hero1.star, hero2.star), 3));
+		} else {
+            uint8 hero1Star = (hero1.star > 1) ? hero1.star - 1 : hero1.star;
+            uint8 hero2Star = (hero2.star > 1) ? hero2.star - 1 : hero2.star;
+		    _newHeroStar = uint8(Math.min(Math.min(hero1Star, hero2Star), 3));
+		}
 		
-		uint256 hero1BreedingPeriod = getBreedingPeriod(hero1.bornAt, hero1.isGenesis);
-		uint256 hero2BreedingPeriod = getBreedingPeriod(hero2.bornAt, hero2.isGenesis);
+		uint256 hero1BreedingPeriod = hero1.isGenesis ? 10 days : 15 days;
+		uint256 hero2BreedingPeriod = hero2.isGenesis ? 10 days : 15 days;
 		uint256 _breedingPeriod = Math.max(hero1BreedingPeriod, hero2BreedingPeriod);
 		
 		uint256 nextBreedId = _getNextBreedId();
@@ -113,12 +118,8 @@ contract Breeding is IHero, Ownable {
 		uint256 newTokenId = nft.latestTokenId();
 		nft.transferFrom(address(this), _msgSender(), breed.tokenId1);
 		nft.transferFrom(address(this), _msgSender(), breed.tokenId2);
-		emit GiveBirth(_msgSender(), breed.tokenId1, breed.tokenId2, newTokenId);
+		emit GiveBirth(_msgSender(), breed.tokenId1, breed.tokenId2, newTokenId, _breedId);
 	}
-
-    // function updateGender(uint8 _heroType, uint8 _gender) external onlyOwner {
-    //     genders[_heroType] = _gender;
-    // }
     
     function updateGender(uint8[] memory _heroTypes, uint8[] memory _genders) external onlyOwner {
         uint256 length = _heroTypes.length;
@@ -135,12 +136,6 @@ contract Breeding is IHero, Ownable {
 	
 	function getBreed(uint256 _breedId) public view returns (Breed memory) {
 	    return breeds[_breedId];
-	}
-	
-	function getBreedingPeriod(uint256 _bornAt, bool _isGenesis) private view returns (uint256) {
-	    uint256 lifeTime = uint256(block.timestamp - _bornAt);
-	    uint256 breedingPeriod = _isGenesis ? 10 days : Math.min( 10 days + lifeTime.div(10 days).mul(5 days), 120 days);
-	    return breedingPeriod;
 	}
 	
 	// Only for test
