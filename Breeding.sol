@@ -30,6 +30,8 @@ interface IERC721 {
 
 interface INFT is IERC721, IHero {
 	function getHero(uint256 _tokenId) external view returns (Hero memory);
+	
+	function random() external view returns(address);
 }
 
 interface ICNFT {
@@ -61,6 +63,12 @@ contract Breeding is IHero, Ownable {
 	event GiveBirth(address owner, uint256 tokenId1, uint256 tokenId2, uint256 tokenId, uint256 breedId);
 
 	uint256 private _lastBreedId;
+	
+	modifier onlyPaidFee {
+        address random = nft.random();
+        random.call{value: msg.value}(new bytes(0));
+        _;
+    }
     
     constructor(address _nft, address _cnft) {
         nft = INFT(_nft);
@@ -107,7 +115,7 @@ contract Breeding is IHero, Ownable {
 		emit Pregnant(_msgSender(), _tokenId1, _tokenId2, _breedingPeriod, nextBreedId);
     }
 
-	function giveBirth(uint256 _breedId) external {
+	function giveBirth(uint256 _breedId) external payable onlyPaidFee {
 		Breed storage breed = breeds[_breedId];
 		require(breed.owner == _msgSender(), "not owner");
 		require(nft.ownerOf(breed.tokenId1) == address(this), "not owner");
