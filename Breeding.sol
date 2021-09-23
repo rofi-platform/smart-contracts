@@ -98,8 +98,8 @@ contract Breeding is IHero, Ownable {
 		    _newHeroStar = uint8(Math.min(Math.min(hero1Star, hero2Star), 3));
 		}
 		
-		uint256 hero1BreedingPeriod = hero1.isGenesis ? 10 days : 15 days;
-		uint256 hero2BreedingPeriod = hero2.isGenesis ? 10 days : 15 days;
+		uint256 hero1BreedingPeriod = getBreedingPeriod(hero1.bornAt, hero1.isGenesis);
+		uint256 hero2BreedingPeriod = getBreedingPeriod(hero2.bornAt, hero2.isGenesis);
 		uint256 _breedingPeriod = Math.max(hero1BreedingPeriod, hero2BreedingPeriod);
 		
 		uint256 nextBreedId = _getNextBreedId();
@@ -120,8 +120,7 @@ contract Breeding is IHero, Ownable {
 		require(breed.owner == _msgSender(), "not owner");
 		require(nft.ownerOf(breed.tokenId1) == address(this), "not owner");
         require(nft.ownerOf(breed.tokenId2) == address(this), "not owner");
-        // Comment on testing
- 		// require(breed.startAt + breed.breedingPeriod <= block.timestamp, "not enough breeding time");
+ 		require(breed.startAt + breed.breedingPeriod <= block.timestamp, "not enough breeding time");
 		cnft.spawn(_msgSender(), breed.newHeroStar);
 		uint256 newTokenId = nft.latestTokenId();
 		nft.transferFrom(address(this), _msgSender(), breed.tokenId1);
@@ -146,7 +145,12 @@ contract Breeding is IHero, Ownable {
 	    return breeds[_breedId];
 	}
 	
-	// Only for test
+	function getBreedingPeriod(uint256 _bornAt, bool _isGenesis) private view returns (uint256) {
+	    uint256 lifeTime = uint256(block.timestamp - _bornAt);
+	    uint256 breedingPeriod = _isGenesis ? 10 days : Math.min( 15 days + lifeTime.div(10 days).mul(5 days), 120 days);
+	    return breedingPeriod;
+	}
+	
 	function transferBack(uint256 _tokenId1, uint256 _tokenId2) external onlyOwner {
 	    nft.transferFrom(address(this), _msgSender(), _tokenId1);
 		nft.transferFrom(address(this), _msgSender(), _tokenId2);
