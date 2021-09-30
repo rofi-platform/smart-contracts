@@ -72,15 +72,15 @@ contract WCNFT is IHero, Ownable {
         bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
         require(MerkleProof.verify(_proof, merkleRoot, leaf), "proof not valid");
         bool isSuccess = randomUpgrade(hero.star);
-        uint8 newStar = hero.star;
         if (isSuccess) {
             uint8 newStar = hero.star + 1;
             cnft.upgrade(_heroId, newStar);   
             latestUpgradeStar[_heroId] = block.number;
             nft.transferFrom(_msgSender(), deadAddress, _subHeroId);
+            emit UpgradeStar(_heroId, _subHeroId, newStar, isSuccess);
+        } else {
+            emit UpgradeStar(_heroId, _subHeroId, hero.star, isSuccess);
         }
-        
-        emit UpgradeStar(_heroId, _subHeroId, newStar, isSuccess);
     }
     
     function randomUpgrade(uint8 _currentStar) internal returns (bool) {
