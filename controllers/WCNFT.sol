@@ -31,10 +31,18 @@ interface INFT is IERC721, IHero {
 	function getHero(uint256 _tokenId) external view returns (Hero memory);
 }
 
+interface IROFI {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+}
+
 contract WCNFT is IHero, Ownable {
-    CNFT public cnft;
+    CNFT private cnft;
     
-    INFT public nft;
+    INFT private nft;
+    
+    IROFI private rofi;
+    
+    address private payRofi;
     
     mapping (address => bool) _upgraders;
     
@@ -43,6 +51,8 @@ contract WCNFT is IHero, Ownable {
     event MerkleRootUpdated(bytes32 merkleRoot);
     
     mapping (uint256 => uint256) latestUpgradeStar;
+    
+    mapping (uint8 => uint256) upgradeStarFee;
     
     event UpgradeStar(uint256 heroId, uint256 subHeroId, uint8 newStar, bool isSuccess);
     
@@ -55,9 +65,11 @@ contract WCNFT is IHero, Ownable {
         _;
     }
     
-    constructor(address _nft, address _cnft) {
+    constructor(address _nft, address _cnft, address _rofi, address _payRofi) {
         nft = INFT(_nft);
         cnft = CNFT(_cnft);
+        rofi = IROFI(_rofi);
+        payRofi = _payRofi;
     }
     
     function upgradeStar(uint256 _heroId, uint8 _level, bytes32[] memory _proof, uint256 _subHeroId) external {
@@ -71,15 +83,18 @@ contract WCNFT is IHero, Ownable {
         require(_level == 30, "level must be 30");
         bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
         require(MerkleProof.verify(_proof, merkleRoot, leaf), "proof not valid");
-        bool isSuccess = randomUpgrade(hero.star);
+        uint8 currentStar = hero.star;
+        uint256 fee = upgradeStarFee[currentStar];
+        rofi.transferFrom(_msgSender(), payRofi, fee);
+        bool isSuccess = randomUpgrade(currentStar);
         if (isSuccess) {
-            uint8 newStar = hero.star + 1;
+            uint8 newStar = currentStar + 1;
             cnft.upgrade(_heroId, newStar);   
             latestUpgradeStar[_heroId] = block.number;
             nft.transferFrom(_msgSender(), deadAddress, _subHeroId);
             emit UpgradeStar(_heroId, _subHeroId, newStar, isSuccess);
         } else {
-            emit UpgradeStar(_heroId, _subHeroId, hero.star, isSuccess);
+            emit UpgradeStar(_heroId, _subHeroId, currentStar, isSuccess);
         }
     }
     
@@ -142,5 +157,34 @@ contract WCNFT is IHero, Ownable {
     
     function transferCNFTOwnership(address newOwner) public onlyOwner {
         cnft.transferOwnership(newOwner);
+    }
+    
+    function updateNft(address _newAddress) external onlyOwner {
+        nft = INFT(_newAddress);
+    }
+    
+    function updateCnft(address _newAddress) external onlyOwner {
+        cnft = CNFT(_newAddress);
+    }
+    
+    function updateRofi(address _newAddress) external onlyOwner {
+        rofi = IROFI(_newAddress);
+    }
+    
+    function updatePayRofi(address _newAddress) external onlyOwner {
+        payRofi = _newAddress;
+    }
+    
+    function updateFee(uint8[] memory _stars, uint256[] memory _fees) external onlyOwner {
+        uint256 length = _stars.length;
+        require(length == _fees.length, "params not correct");
+        for (uint256 i = 0; i < length; i++) {
+            uint8 _star = uint8(_stars[i]);
+            upgradeStarFee[_star] = uint256(_fees[i]*10**18);
+        }
+    }
+    
+    function getFee(uint8 _currentStar) public view returns (uint256) {
+        return upgradeStarFee[_currentStar];
     }
 }
