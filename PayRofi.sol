@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IROFI {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    
+    function transfer(address recipient, uint256 amount) external returns (bool);
 }
 
 contract PayRofi is Ownable {
@@ -34,12 +36,12 @@ contract PayRofi is Ownable {
         rofi = IROFI(_rofi);
     }
     
-    function payRofi(uint256 _amount) external {
+    function payRofi(uint256 _amount) external onlyOwner {
         uint256 amount = _amount.div(100);
-        rofi.transferFrom(address(this), address(0), amount.mul(burn_percentage));
-        rofi.transferFrom(address(this), dev_team_address, amount.mul(dev_team_percentage));
-        rofi.transferFrom(address(this), advisor_address, amount.mul(advisor_percentage));
-        rofi.transferFrom(address(this), dev_mkt_address, amount.mul(dev_team_percentage));
+        rofi.transfer(address(0x000000000000000000000000000000000000dEaD), amount.mul(burn_percentage));
+        rofi.transfer(dev_team_address, amount.mul(dev_team_percentage));
+        rofi.transfer(advisor_address, amount.mul(advisor_percentage));
+        rofi.transfer(dev_mkt_address, amount.mul(dev_mkt_percentage));
         addLiquidity(amount.mul(add_liquidity_percentage));
     }
     
@@ -49,5 +51,17 @@ contract PayRofi is Ownable {
     
     function updateRofiAddress(address _newAddress) external onlyOwner {
         rofi = IROFI(_newAddress);
+    }
+    
+    function updateDevTeamAddress(address _newAddress) external onlyOwner {
+        dev_team_address = _newAddress;
+    }
+    
+    function updateAdvisorAddress(address _newAddress) external onlyOwner {
+        advisor_address = _newAddress;
+    }
+    
+    function updateDevMktAddress(address _newAddress) external onlyOwner {
+        dev_mkt_address = _newAddress;
     }
 }
