@@ -87,9 +87,6 @@ contract UpgradeStar is IHero, Ownable {
     }
     
     function randomUpgrade(uint8 _currentStar) internal returns (bool) {
-        if (_currentStar == 1) {
-            return true;
-        }
         uint random = getRandomNumber();
         uint seed = random % 100;
         uint successRate = getSuccessRate(_currentStar);
