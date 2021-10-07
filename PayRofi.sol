@@ -7,12 +7,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IROFI {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    
-    function balanceOf(address account) external view returns (uint256);
-    
-    function approve(address spender, uint256 amount) external returns (bool);
 }
 
 contract PayRofi is Ownable {
@@ -38,17 +32,36 @@ contract PayRofi is Ownable {
     
     IROFI private rofi;
     
+    mapping (address => bool) _callers;
+    
+    modifier onlyCaller {
+        require(_callers[msg.sender] || owner() == msg.sender, "require valid caller");
+        _;
+    }
+    
     constructor(address _rofi) {
         rofi = IROFI(_rofi);
     }
     
-    function payRofi(uint256 _amount) external onlyOwner {
+    function callers(address _address) external view returns (bool) {
+        return _callers[_address];
+    }
+
+    function addCaller(address _address) external onlyOwner {
+        _callers[_address] = true;
+    }
+    
+    function removeCaller(address _address) external onlyOwner {
+        _callers[_address] = false;
+    }
+    
+    function payRofi(address _sender, uint256 _amount) external onlyCaller {
         uint256 amount = _amount.div(100);
-        rofi.transfer(address(0x000000000000000000000000000000000000dEaD), amount.mul(burn_percentage));
-        rofi.transfer(dev_team_address, amount.mul(dev_team_percentage));
-        rofi.transfer(advisor_address, amount.mul(advisor_percentage));
-        rofi.transfer(dev_mkt_address, amount.mul(dev_mkt_percentage));
-        rofi.transfer(liquidity_address, amount.mul(add_liquidity_percentage));
+        rofi.transferFrom(_sender, address(0x000000000000000000000000000000000000dEaD), amount.mul(burn_percentage));
+        rofi.transferFrom(_sender, dev_team_address, amount.mul(dev_team_percentage));
+        rofi.transferFrom(_sender, advisor_address, amount.mul(advisor_percentage));
+        rofi.transferFrom(_sender, dev_mkt_address, amount.mul(dev_mkt_percentage));
+        rofi.transferFrom(_sender, liquidity_address, amount.mul(add_liquidity_percentage));
     }
     
     function updateRofiAddress(address _newAddress) external onlyOwner {

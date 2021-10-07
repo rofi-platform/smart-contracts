@@ -29,8 +29,8 @@ interface INFT is IERC721, IHero {
 	function getHero(uint256 _tokenId) external view returns (Hero memory);
 }
 
-interface IROFI {
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+interface IPayRofi {
+    function payRofi(address _sender, uint256 _amount) external;
 }
 
 contract UpgradeStar is IHero, Ownable {
@@ -38,11 +38,7 @@ contract UpgradeStar is IHero, Ownable {
     
     INFT private nft;
     
-    IROFI private rofi;
-    
-    address private payRofi;
-    
-    mapping (address => bool) _upgraders;
+    IPayRofi private payRofi;
     
     bytes32 public merkleRoot;
     
@@ -58,16 +54,10 @@ contract UpgradeStar is IHero, Ownable {
     
     address public deadAddress = 0x05ea9701d37ca0db25993248e1d8461A8b50f24a;
     
-    modifier onlyUpgrader {
-        require(_upgraders[msg.sender] || owner() == msg.sender, "require Upgrader");
-        _;
-    }
-    
-    constructor(address _nft, address _cnft, address _rofi, address _payRofi) {
+    constructor(address _nft, address _cnft, address _payRofi) {
         nft = INFT(_nft);
         cnft = CNFT(_cnft);
-        rofi = IROFI(_rofi);
-        payRofi = _payRofi;
+        payRofi = IPayRofi(_payRofi);
     }
     
     function upgradeStar(uint256 _heroId, uint8 _level, bytes32[] memory _proof, uint256 _subHeroId) external {
@@ -83,7 +73,7 @@ contract UpgradeStar is IHero, Ownable {
         require(MerkleProof.verify(_proof, merkleRoot, leaf), "proof not valid");
         uint8 currentStar = hero.star;
         uint256 fee = upgradeStarFee[currentStar];
-        rofi.transferFrom(_msgSender(), payRofi, fee);
+        payRofi.payRofi(_msgSender(), fee);
         bool isSuccess = randomUpgrade(currentStar);
         if (isSuccess) {
             uint8 newStar = currentStar + 1;
@@ -149,12 +139,8 @@ contract UpgradeStar is IHero, Ownable {
         cnft = CNFT(_newAddress);
     }
     
-    function updateRofi(address _newAddress) external onlyOwner {
-        rofi = IROFI(_newAddress);
-    }
-    
     function updatePayRofi(address _newAddress) external onlyOwner {
-        payRofi = _newAddress;
+        payRofi = IPayRofi(_newAddress);
     }
     
     function updateFee(uint8[] memory _stars, uint256[] memory _fees) external onlyOwner {
