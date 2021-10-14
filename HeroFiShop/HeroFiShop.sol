@@ -13,42 +13,40 @@ contract HeroFiShop is Ownable, Pausable {
     IPayRofi public payRofi;
 
     struct Pack {
-        uint256 goldAmount;
+        string description;
         uint256 price;
-        uint16 ticketAmount;
         bool isEnable;
     }
 
-    mapping(uint8 => Pack) public packs;
+    mapping(uint256 => Pack) public packs;
 
-    uint8 public currentPackId;
+    uint256 public currentPackId;
 
-    event BuyPack(uint8 indexed packId, address indexed buyer, uint256 buyAt);
+    event BuyPack(uint256 indexed packId, address indexed buyer, uint256 buyAt);
 
-    event DisablePack(uint8 indexed packId);
-    event EnablePack(uint8 indexed packId);
+    event DisablePack(uint256 indexed packId);
+    event EnablePack(uint256 indexed packId);
 
     constructor (address _payRofi){
         payRofi = IPayRofi(_payRofi);
     }
 
-    function addPack(uint256 _goldAmount, uint16 _ticketAmount, uint256 _price) public onlyOwner {
+    function addPack(uint256 _price, string memory _description) public onlyOwner {
         currentPackId++;
         packs[currentPackId] = Pack({
-        goldAmount : _goldAmount,
         price : _price,
-        ticketAmount : _ticketAmount,
-        isEnable: true
+        description : _description,
+        isEnable : true
         });
     }
 
-    function disablePack(uint8 _packId) public onlyOwner {
+    function disablePack(uint256 _packId) public onlyOwner {
         Pack storage pack = packs[_packId];
         pack.isEnable = false;
         emit DisablePack(_packId);
     }
 
-    function enablePack(uint8 _packId) public onlyOwner {
+    function enablePack(uint256 _packId) public onlyOwner {
         Pack storage pack = packs[_packId];
         pack.isEnable = true;
         emit EnablePack(_packId);
@@ -58,15 +56,11 @@ contract HeroFiShop is Ownable, Pausable {
         payRofi = IPayRofi(_payRofi);
     }
 
-    function buyPack(uint8 _packId) public whenNotPaused {
+    function buyPack(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
         payRofi.payRofi(_msgSender(), pack.price);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
-    }
-
-    function getPack(uint8 _packId) public view returns (Pack memory) {
-        return packs[_packId];
     }
 
     /**
