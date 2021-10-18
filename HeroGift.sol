@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IHero {
     struct Hero {
@@ -37,7 +38,7 @@ interface ICNFT {
     function spawn(address to_, uint8 star_) external;
 }
 
-contract HeroGift is Context {
+contract HeroGift is Context, Ownable {
 
     INFT private nft;
 
@@ -68,5 +69,13 @@ contract HeroGift is Context {
 
     function isReceivedHeroGift(address _user) public view returns (bool) {
         return receivedHeroGift[_user];
+    }
+
+    function updateNft(address _newAddress) external onlyOwner {
+        nft = INFT(_newAddress);
+    }
+    
+    function updateCnft(address _newAddress) external onlyOwner {
+        cnft = ICNFT(_newAddress);
     }
 }
