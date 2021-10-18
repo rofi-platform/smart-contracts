@@ -70,7 +70,7 @@ contract UpgradeStar is IHero, Ownable {
         require(latestUpgradeStar[_heroId] == 0 || (block.number - latestUpgradeStar[_heroId]) >= 300, "must wait a least 300 blocks");
         require(_level == 30, "level must be 30");
         bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
-        require(MerkleProof.verify(_proof, merkleRoot, leaf), "proof not valid");
+        require(MerkleProof.verify(_proof, merkleRoot, leaf), "data is outdated or invalid");
         uint8 currentStar = hero.star;
         uint256 fee = upgradeStarFee[currentStar];
         payRofi.payRofi(_msgSender(), fee);
