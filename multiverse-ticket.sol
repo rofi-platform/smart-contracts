@@ -18,7 +18,6 @@ contract HeroFiTicket is ERC721 {
     function mint(address to_, uint256 ticketId_) public {
         uint256 nextTokenId = _getNextTokenId();
         _mint(to_, nextTokenId);
-        _incrementTokenId();
     }
     function _getNextTokenId() private view returns (uint256) {
         return _latestTokenId.add(1);
