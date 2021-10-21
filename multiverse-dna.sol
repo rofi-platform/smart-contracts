@@ -17,8 +17,8 @@ interface IHERO {
 }
 
 contract Gateway is Ownable{
-    mapping(uint256 => bytes32) dnas;
-    mapping(uint256 => bool) isSetDna;
+    mapping(uint256 => bytes32) public dnas;
+    mapping(uint256 => bool) public isSetDna;
     IHERO public hero_contract;
     IERC721 public ticket_contract; 
     Random private _random;
