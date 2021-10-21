@@ -1,9 +1,5 @@
-/**
- *Submitted for verification at BscScan.com on 2020-09-22
-*/
-
+// SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
-
 
 // 
 /*
@@ -28,6 +24,108 @@ contract Context {
     function _msgData() internal view returns (bytes memory) {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
+    }
+}
+
+abstract contract ReentrancyGuard {
+    // Booleans are more expensive than uint256 or any type that takes up a full
+    // word because each write operation emits an extra SLOAD to first read the
+    // slot's contents, replace the bits taken up by the boolean, and then write
+    // back. This is the compiler's defense against contract upgrades and
+    // pointer aliasing, and it cannot be disabled.
+
+    // The values being non-zero value makes deployment a bit more expensive,
+    // but in exchange the refund on every call to nonReentrant will be lower in
+    // amount. Since refunds are capped to a percentage of the total
+    // transaction's gas, it is best to keep them low in cases like this one, to
+    // increase the likelihood of the full refund coming into effect.
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
+    constructor () internal {
+        _status = _NOT_ENTERED;
+    }
+
+    /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and make it call a
+     * `private` function that does the actual work.
+     */
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+
+        _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
+    }
+}
+
+library SafeERC20 {
+    using SafeMath for uint256;
+    using Address for address;
+
+    function safeTransfer(BEP20 token, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+
+    function safeTransferFrom(BEP20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+
+    /**
+     * @dev Deprecated. This function has issues similar to the ones found in
+     * {IERC20-approve}, and its usage is discouraged.
+     *
+     * Whenever possible, use {safeIncreaseAllowance} and
+     * {safeDecreaseAllowance} instead.
+     */
+    function safeApprove(BEP20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+
+    function safeIncreaseAllowance(BEP20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function safeDecreaseAllowance(BEP20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    /**
+     * @dev Imitates a Solidity high-level call (i.e. a regular function call to a contract), relaxing the requirement
+     * on the return value: the return value is optional (but if data is returned, it must not be false).
+     * @param token The token targeted by the call.
+     * @param data The call data (encoded using abi.encode or one of its variants).
+     */
+    function _callOptionalReturn(BEP20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+        // the target address contains contract code and also asserts for success in the low-level call.
+
+        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
     }
 }
 
@@ -197,6 +295,35 @@ interface IBEP20 {
      * a call to {approve}. `value` is the new allowance.
      */
     event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+
+interface ILZ is IBEP20 {
+    function getUnlockFactor(address token) external view returns (uint256);
+    function getUnlockBlockGap(address token) external view returns (uint256);
+
+    function totalUnlocked() external view returns (uint256);
+    function unlockedOf(address account) external view returns (uint256);
+    function lockedOf(address account) external view returns (uint256);
+
+    function getStaked(address token) external view returns (uint256);
+    function getUnlockSpeed(address staker, address token) external view returns (uint256);
+    function claimableUnlocked(address token, address account) external view returns (uint256);
+
+    function setUnlockFactor(address token, uint256 _factor) external;
+    function setUnlockBlockGap(address token, uint256 _blockGap) external;
+
+    function stake(address token, uint256 amount) external returns (bool);
+    function unstake(address token, uint256 amount) external returns (bool);
+    function claimUnlocked(address token) external returns (bool);
+
+    function setAuthorizedUnlockedMintCaller(address caller) external;
+    function removeAuthorizedUnlockedMintCaller(address caller) external;
+    function setAuthorizedLockedMintCaller(address caller) external;
+    function removeAuthorizedLockedMintCaller(address caller) external;
+
+    function mintUnlockedToken(address to, uint256 amount) external;
+    function mintLockedToken(address to, uint256 amount) external;
 }
 
 // 
@@ -746,11 +873,11 @@ contract BEP20 is Context, IBEP20, Ownable {
      * Requirements
      *
      * - `msg.sender` must be the token owner
-     */
     function mint(uint256 amount) public onlyOwner returns (bool) {
         _mint(_msgSender(), amount);
         return true;
     }
+     */
 
     /**
      * @dev Moves tokens `amount` from `sender` to `recipient`.
@@ -770,7 +897,7 @@ contract BEP20 is Context, IBEP20, Ownable {
         address sender,
         address recipient,
         uint256 amount
-    ) internal {
+    ) internal virtual {
         require(sender != address(0), 'BEP20: transfer from the zero address');
         require(recipient != address(0), 'BEP20: transfer to the zero address');
 
@@ -856,13 +983,329 @@ contract BEP20 is Context, IBEP20, Ownable {
     }
 }
 
-// CakeToken with Governance.
-contract ROFI is BEP20('ROFI', 'ROFI') {
-    /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (MasterChef).
-    function mint(address _to, uint256 _amount) public onlyOwner {
-        _mint(_to, _amount);
-        _moveDelegates(address(0), _delegates[_to], _amount);
+/**
+ * @title Pausable
+ * @dev Base contract which allows children to implement an emergency stop mechanism.
+ */
+contract Pausable is Ownable {
+  event Pause();
+  event Unpause();
+
+  bool public paused = false;
+
+
+  /**
+  * @dev modifier to allow actions only when the contract IS paused
+  */
+  modifier whenNotPaused() {
+    require (!paused, "Token contract is paused");
+    _;
+  }
+
+  /**
+  * @dev modifier to allow actions only when the contract IS NOT paused
+  */
+  modifier whenPaused {
+    require (paused, "Token contract has not been paused") ;
+    _;
+  }
+
+  /**
+  * @dev called by the owner to pause, triggers stopped state
+  */
+  function pause() onlyOwner external whenNotPaused returns (bool) {
+    paused = true;
+    emit Pause();
+    return true;
+  }
+
+  /**
+  * @dev called by the owner to unpause, returns to normal state
+  */
+  function unpause() onlyOwner external whenPaused returns (bool) {
+    paused = false;
+    emit Unpause();
+    return true;
+  }
+}
+
+// LZToken with Governance.
+contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
+    using SafeMath for uint256;
+    using SafeERC20 for BEP20;
+
+    struct LpStakeInfo {
+        uint256 amountStaked;
+        uint256 blockNumber;
     }
+
+    event LOG_UNLOCK_TRANSFER (
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
+
+    event LOG_STAKE (
+        address indexed staker,
+        address indexed token,
+        uint256 stakeAmount
+    );
+
+    event LOG_UNSTAKE (
+        address indexed staker,
+        address indexed token,
+        uint256 unstakeAmount
+    );
+
+    event LOG_CLAIM_UNLOCKED (
+        address indexed staker,
+        uint256 claimedAmount
+    );
+
+    event LOG_SET_UNLOCK_FACTOR (
+        address indexed token,
+        uint256 factor
+    );
+
+    event LOG_SET_UNLOCK_BLOCK_GAP (
+        address indexed token,
+        uint256 blockGap
+    );
+    
+    event ConsumerDeposit (
+        address indexed sender,
+        address indexed recipient,
+        uint256 amount
+    );
+    
+    uint256 public constant FACTOR_DENOMINATOR = 10 ** 8;
+
+    mapping (address => uint256) private _unlocks;
+    mapping (address => mapping(address => LpStakeInfo)) private _stakingRecords;
+    mapping (address => uint256) private _unlockFactor;
+    mapping (address => uint256) private _unlockBlockGap;
+    mapping (address => bool) private _authorizedUnlockedMintCaller;
+    mapping (address => bool) private _authorizedLockedMintCaller;
+    mapping (address => bool) private _consumerContracts;
+
+    uint256 private _totalUnlocked;
+
+    modifier onlyAuthorizedUnlockedMintCaller() {
+        require(_msgSender() == owner() || _authorizedUnlockedMintCaller[_msgSender()],"LZP: UNLOCKED_MINT_CALLER_NOT_AUTHORIZED");
+        _;
+    }
+    
+    modifier onlyAuthorizedLockedMintCaller() {
+        require(_msgSender() == owner() || _authorizedUnlockedMintCaller[_msgSender()] || _authorizedLockedMintCaller[_msgSender()],"LZP: LOCKED_MINT_CALLER_NOT_AUTHORIZED");
+        _;
+    }
+    function getUnlockFactor(address token) external view override returns (uint256) {
+        return _unlockFactor[token];
+    }
+
+    function getUnlockBlockGap(address token) external view override returns (uint256) {
+        return _unlockBlockGap[token];
+    }
+
+    function totalUnlocked() external view override returns (uint256) {
+        return _totalUnlocked;
+    }
+
+    function unlockedOf(address account) public view override returns (uint256) {
+        return _unlocks[account];
+    }
+
+    function lockedOf(address account) public view override returns (uint256) {
+        return balanceOf(account).sub(_unlocks[account]);
+    }
+
+    function getStaked(address token) external view override returns (uint256) {
+        return _stakingRecords[_msgSender()][token].amountStaked;
+    }
+
+    function getUnlockSpeed(address staker, address token) external view override returns (uint256) {
+        LpStakeInfo storage info = _stakingRecords[staker][token];
+        return _getUnlockSpeed(token, staker, info.amountStaked);
+    }
+
+    function claimableUnlocked(address token, address account) external view override returns (uint256) {
+        LpStakeInfo storage info = _stakingRecords[account][token];
+        return _settleUnlockAmount(account, token, info.amountStaked, info.blockNumber);
+    }
+
+
+    function setUnlockFactor(address token, uint256 _factor) external override onlyOwner {
+        _unlockFactor[token] = _factor;
+        emit LOG_SET_UNLOCK_FACTOR(token, _factor);
+    }
+  
+    function setUnlockBlockGap(address token, uint256 _blockGap) external override onlyOwner {
+        _unlockBlockGap[token] = _blockGap;
+        emit LOG_SET_UNLOCK_BLOCK_GAP(token, _blockGap);
+    }
+    
+    function stake(address token, uint256 amount) external override nonReentrant returns (bool) {
+        require(_unlockFactor[token] > 0, "LZ: FACTOR_NOT_SET");
+        require(_unlockBlockGap[token] > 0, "LZ: BLOCK_GAP_NOT_SET");
+        _pullToken(token, _msgSender(), amount);
+        LpStakeInfo storage info = _stakingRecords[_msgSender()][token];
+        uint256 unlockedAmount = _settleUnlockAmount(_msgSender(), token, info.amountStaked, info.blockNumber);
+        _updateStakeRecord(_msgSender(), token, info.amountStaked.add(amount));
+        _mintUnlocked(_msgSender(), unlockedAmount);
+        emit LOG_STAKE(_msgSender(), token, amount);
+        return true;
+    }
+
+    function unstake(address token, uint256 amount) external override nonReentrant returns (bool) {
+        require(amount > 0, "LZ: ZERO_UNSTAKE_AMOUNT");
+        LpStakeInfo storage info = _stakingRecords[_msgSender()][token];
+        require(amount <= info.amountStaked, "LZ: UNSTAKE_AMOUNT_EXCEEDED");
+        uint256 unlockedAmount = _settleUnlockAmount(_msgSender(), token, info.amountStaked, info.blockNumber);
+        _updateStakeRecord(_msgSender(), token, info.amountStaked.sub(amount));
+        _mintUnlocked(_msgSender(), unlockedAmount);
+        _pushToken(token, _msgSender(), amount);
+        emit LOG_UNSTAKE(_msgSender(), token, amount);
+        return true;
+    }
+
+    function claimUnlocked(address token) external override nonReentrant returns (bool) {
+        LpStakeInfo storage info = _stakingRecords[_msgSender()][token];
+        uint256 unlockedAmount = _settleUnlockAmount(_msgSender(), token, info.amountStaked, info.blockNumber);
+        _updateStakeRecord(_msgSender(), token, info.amountStaked);
+        _mintUnlocked(_msgSender(), unlockedAmount);
+        emit LOG_CLAIM_UNLOCKED(_msgSender(), unlockedAmount);
+        return true;
+    }
+
+    function _updateStakeRecord(address staker, address token, uint256 _amountStaked) internal {
+        _stakingRecords[staker][token].amountStaked = _amountStaked;
+        _stakingRecords[staker][token].blockNumber = block.number;
+    }
+
+    function mintUnlockedToken(address to, uint256 amount) onlyAuthorizedUnlockedMintCaller external override {
+        _mint(to, amount);
+        _mintUnlocked(to, amount);
+        _moveDelegates(address(0), _delegates[to], amount);
+    }
+
+    function mintLockedToken(address to, uint256 amount) onlyAuthorizedLockedMintCaller external override {
+        _mint(to, amount);
+        _moveDelegates(address(0), _delegates[to], amount);
+    }
+
+    function setAuthorizedUnlockedMintCaller(address caller) onlyOwner external override {
+        _authorizedUnlockedMintCaller[caller] = true;
+    }
+
+    function removeAuthorizedUnlockedMintCaller(address caller) onlyOwner external override {
+        _authorizedUnlockedMintCaller[caller] = false;
+    }
+
+    function setAuthorizedLockedMintCaller(address caller) onlyOwner external override {
+        _authorizedLockedMintCaller[caller] = true;
+    }
+
+    function removeAuthorizedLockedMintCaller(address caller) onlyOwner external override {
+        _authorizedLockedMintCaller[caller] = false;
+    }
+
+    function setConsumerContract(address caller) onlyOwner public {
+        _consumerContracts[caller] = true;
+    }
+
+    function removeConsumerContract(address caller) onlyOwner public {
+        _consumerContracts[caller] = false;
+    }
+
+    function _settleUnlockAmount(address staker, address token, uint256 lpStaked, uint256 upToBlockNumber) internal view returns (uint256) {
+        uint256 unlockSpeed = _getUnlockSpeed(token, staker, lpStaked);
+        uint256 blocks = block.number.sub(upToBlockNumber);
+        uint256 unlockedAmount = unlockSpeed.mul(blocks).div(FACTOR_DENOMINATOR);
+        uint256 lockedAmount = lockedOf(staker);
+        if (unlockedAmount > lockedAmount) {
+            unlockedAmount = lockedAmount;
+        }
+        return unlockedAmount;
+    }
+
+    function _mintUnlocked(address recipient, uint256 amount) internal {
+        _unlocks[recipient] = _unlocks[recipient].add(amount);
+        _totalUnlocked = _totalUnlocked.add(amount);
+        emit LOG_UNLOCK_TRANSFER(address(0), recipient, amount);
+    }
+
+    function _getUnlockSpeed(address token, address staker, uint256 lpStaked) internal view returns (uint256) {
+        uint256 toBeUnlocked = lockedOf(staker);
+        uint256 unlockSpeed = _unlockFactor[token].mul(lpStaked);
+        uint256 maxUnlockSpeed = toBeUnlocked.mul(FACTOR_DENOMINATOR).div(_unlockBlockGap[token]);
+        if(unlockSpeed > maxUnlockSpeed) {
+            unlockSpeed = maxUnlockSpeed;
+        }
+        return unlockSpeed;
+    }
+
+    function _unlockTransfer(address sender, address recipient, uint256 amount) internal {
+        require(sender != address(0), "BEP20: transfer from the zero address");
+        require(recipient != address(0), "BEP20: transfer to the zero address");
+        if (_consumerContracts[recipient]) {
+            uint256 locked_balance = balanceOf(sender).sub(_unlocks[sender]);
+            if (amount < locked_balance) {
+                _mintUnlocked(recipient, amount);
+            }else{
+                _unlocks[sender] = balanceOf(sender) - amount;
+                _mintUnlocked(recipient, locked_balance);
+            }
+            emit ConsumerDeposit(sender, recipient, amount);
+        }else{
+            _unlocks[sender] = _unlocks[sender].sub(amount, "BEP20: transfer amount exceeds unlocked balance");
+            _unlocks[recipient] = _unlocks[recipient].add(amount);
+            emit LOG_UNLOCK_TRANSFER(sender, recipient, amount);
+        }
+    }
+
+    function _pullToken(address token, address from, uint256 amount) internal {
+        BEP20(token).safeTransferFrom(from, address(this), amount);
+    }
+
+    function _pushToken(address token, address to, uint256 amount) internal {
+        BEP20(token).safeTransfer(to, amount);
+    }
+    
+     //to recieve ETH from uniswapV2Router when swaping
+    receive() external payable {}
+
+    /** 
+     * @dev Moves tokens `amount` from `sender` to `recipient`.
+     *
+     * This is internal function is equivalent to {transfer}, and can be used to
+     * e.g. implement automatic token fees, slashing mechanisms, etc.
+     *
+     * Emits a {Transfer} event.
+     *
+     * Requirements:
+     *
+     * - `sender` cannot be the zero address.
+     * - `recipient` cannot be the zero address.
+     * - `sender` must have a balance of at least `amount`.
+     */
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual whenNotPaused override{
+        super._transfer(sender, recipient, amount);
+        _unlockTransfer(sender, recipient, amount);
+        _moveDelegates(_delegates[sender], _delegates[recipient], amount);
+    }
+
+    /**
+     * @dev Destroys `amount` tokens from the caller.
+     *
+     * See {ERC20-_burn}.
+     */
+    function burn(uint256 amount) public virtual returns (bool) {
+        _burn(_msgSender(), amount);
+        uint256 unlockSubAmount = amount < _unlocks[_msgSender()] ? amount : _unlocks[_msgSender()];
+        _unlocks[_msgSender()] = _unlocks[_msgSender()].sub(unlockSubAmount);
+        _totalUnlocked = _totalUnlocked.sub(unlockSubAmount);
+        return true;
+    }    
 
     // Copied and modified from YAM code:
     // https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernanceStorage.sol
@@ -911,6 +1354,7 @@ contract ROFI is BEP20('ROFI', 'ROFI') {
     {
         return _delegates[delegator];
     }
+
 
    /**
     * @notice Delegate votes from `msg.sender` to `delegatee`
@@ -966,9 +1410,9 @@ contract ROFI is BEP20('ROFI', 'ROFI') {
         );
 
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "CAKE::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "CAKE::delegateBySig: invalid nonce");
-        require(now <= expiry, "CAKE::delegateBySig: signature expired");
+        require(signatory != address(0), "LZ::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "LZ::delegateBySig: invalid nonce");
+        require(now <= expiry, "LZ::delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
@@ -998,7 +1442,7 @@ contract ROFI is BEP20('ROFI', 'ROFI') {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "CAKE::getPriorVotes: not yet determined");
+        require(blockNumber < block.number, "LZ::getPriorVotes: not yet determined");
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -1035,7 +1479,7 @@ contract ROFI is BEP20('ROFI', 'ROFI') {
         internal
     {
         address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying CAKEs (not scaled);
+        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying LZs (not scaled);
         _delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
@@ -1071,7 +1515,7 @@ contract ROFI is BEP20('ROFI', 'ROFI') {
     )
         internal
     {
-        uint32 blockNumber = safe32(block.number, "CAKE::_writeCheckpoint: block number exceeds 32 bits");
+        uint32 blockNumber = safe32(block.number, "LZ::_writeCheckpoint: block number exceeds 32 bits");
 
         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
