@@ -32,7 +32,7 @@ contract RewardFree is Ownable {
         uint256 current = block.timestamp;
         require((current - _timestamp) <= 10 days, "must claim within 10 days");
         bytes32 leaf = keccak256(abi.encodePacked(_user, _reward));
-        // require(MerkleProof.verify(_proof, roots[_timestamp], leaf), "proof not valid");
+        require(MerkleProof.verify(_proof, roots[_timestamp], leaf), "proof not valid");
         require(!claimed[_timestamp][_user], "claimed");
         claimed[_timestamp][_user] = true;
         rewardManager.mintReward(_user, _reward);
