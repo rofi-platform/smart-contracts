@@ -14,6 +14,8 @@ contract HeroEggClaim is Ownable {
     
     uint256 public tranches;
     
+    uint256 public amount = 400000 * 10 ** 18;
+    
     mapping(uint256 => bytes32) public merkleRoots;
     mapping(uint256 => mapping(address => bool)) public claimed;
     
@@ -42,50 +44,54 @@ contract HeroEggClaim is Ownable {
         emit TrancheExpired(_trancheId);
     }
     
-    function claimTranche(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) public {
-        _claim(_user, _tranche, _balance, _merkleProof);
-        _disburse(_user, _balance);
+    function claimTranche(address _user, uint256 _tranche, bytes32[] memory _merkleProof) public {
+        _claim(_user, _tranche, _merkleProof);
+        _disburse(_user, amount);
     }
 
-    function claimTranches(address _user, uint256[] memory _tranches, uint256[] memory _balances, bytes32[][] memory _merkleProofs) public {
+    function claimTranches(address _user, uint256[] memory _tranches, bytes32[][] memory _merkleProofs) public {
         uint256 len = _tranches.length;
-        require(len == _balances.length && len == _merkleProofs.length, "Mismatching inputs");
+        require(len == _merkleProofs.length, "Mismatching inputs");
 
         uint256 totalBalance = 0;
         for(uint256 i = 0; i < len; i++) {
-            _claim(_user, _tranches[i], _balances[i], _merkleProofs[i]);
-            totalBalance = totalBalance.add(_balances[i]);
+            _claim(_user, _tranches[i], _merkleProofs[i]);
+            totalBalance = totalBalance.add(amount);
         }
         _disburse(_user, totalBalance);
     }
     
-    function isClaimed(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) public view returns (bool) {
+    function isClaimed(address _user, uint256 _tranche) public view returns (bool) {
         require(_tranche < tranches, "Incorrect tranche");
         
         return claimed[_tranche][_user];
     }
 
-    function verifyClaim(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) public view returns (bool valid) {
-        return _verifyClaim(_user, _tranche, _balance, _merkleProof);
+    function verifyClaim(address _user, uint256 _tranche, bytes32[] memory _merkleProof) public view returns (bool valid) {
+        return _verifyClaim(_user, _tranche, _merkleProof);
     }
     
-    function _claim(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) private {
+    function _claim(address _user, uint256 _tranche, bytes32[] memory _merkleProof) private {
         require(_tranche < tranches, "Incorrect tranche");
         require(!claimed[_tranche][_user], "Already claimed");
-        require(_verifyClaim(_user, _tranche, _balance, _merkleProof), "Incorrect merkle proof");
+        require(_verifyClaim(_user, _tranche, _merkleProof), "Incorrect merkle proof");
 
         claimed[_tranche][_user] = true;
 
-        emit Claimed(_user, _tranche, _balance);
+        emit Claimed(_user, _tranche, amount);
     }
     
-    function _verifyClaim(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) private view returns (bool valid) {
-        bytes32 leaf = keccak256(abi.encodePacked(_user, _balance));
+    function _verifyClaim(address _user, uint256 _tranche, bytes32[] memory _merkleProof) private view returns (bool valid) {
+        bytes32 leaf = keccak256(abi.encodePacked(_user));
         return MerkleProof.verify(_merkleProof, merkleRoots[_tranche], leaf);
     }
     
     function _disburse(address _user, uint256 _balance) private {
         require(_balance > 0, "No balance would be transferred");
         token.transfer(_user, _balance);
+    }
+    
+    function setAmount(uint256 _amount) external onlyOwner {
+        amount = _amount;
     }
 }
