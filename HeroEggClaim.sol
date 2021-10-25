@@ -94,4 +94,13 @@ contract HeroEggClaim is Ownable {
     function setAmount(uint256 _amount) external onlyOwner {
         amount = _amount;
     }
+    
+    function getAmount() external view returns (uint256) {
+        return amount;
+    }
+    
+    function getLatestTranche() external view returns (uint256) {
+        uint256 tranche = tranches > 1 ? tranches - 1 : 0;
+        return tranche;
+    }
 }
