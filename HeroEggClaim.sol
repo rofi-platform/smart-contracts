@@ -47,7 +47,6 @@ contract HeroEggClaim is Ownable {
         _disburse(_user, _balance);
     }
 
-
     function claimTranches(address _user, uint256[] memory _tranches, uint256[] memory _balances, bytes32[][] memory _merkleProofs) public {
         uint256 len = _tranches.length;
         require(len == _balances.length && len == _merkleProofs.length, "Mismatching inputs");
@@ -59,7 +58,12 @@ contract HeroEggClaim is Ownable {
         }
         _disburse(_user, totalBalance);
     }
-
+    
+    function isClaimed(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) public view returns (bool) {
+        require(_tranche < tranches, "Incorrect tranche");
+        
+        return claimed[_tranche][_user];
+    }
 
     function verifyClaim(address _user, uint256 _tranche, uint256 _balance, bytes32[] memory _merkleProof) public view returns (bool valid) {
         return _verifyClaim(_user, _tranche, _balance, _merkleProof);
