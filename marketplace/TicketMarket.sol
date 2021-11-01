@@ -34,31 +34,36 @@ contract HeroMarket is Ownable {
     uint256 public feeMarketRate = 4; // unit %.
     IERC20 public immutable busdBEP20;
 
+    mapping(address => bool) public _listedNfts;
     mapping(address => EnumerableSet.UintSet) private tokenSales;
     mapping(address => mapping(uint256 => ItemSale)) internal markets;
-    mapping(address => mapping(address =>EnumerableSet.UintSet)) private sellerTokens;
+    mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
 
 
     constructor(address _eggERC20){
         busdBEP20 = IERC20(_eggERC20);
     }
 
+    modifier onlyListedNft(address _nftAddress) {
+        require(_listedNfts[_nftAddress], "ERROR: NFT not accepted in Market");
+        _;
+    }
+
     function setFeeMarketRate(uint256 _feeMarketRate) public onlyOwner {
         require(_feeMarketRate < 100, "Too high");
         feeMarketRate = _feeMarketRate;
     }
-    function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public {
+
+    function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "not own");
         require(_price > 0, "nothing is free");
-        // TODO Need check this
-        // require(isEvolved[_tokenId], "require: evolved");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);
 
         emit PlaceOrder(currentOrderId, _nftAddress, _tokenId, _msgSender(), _price);
     }
 
-    function cancelOrder(address _nftAddress, uint256 _tokenId) public {
+    function cancelOrder(address _nftAddress, uint256 _tokenId) public onlyListedNft(_nftAddress) {
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         require(itemSale.owner == _msgSender(), "not own");
@@ -69,7 +74,7 @@ contract HeroMarket is Ownable {
         emit CancelOrder(_orderId, _nftAddress, _tokenId, _msgSender());
     }
 
-    function updatePrice(address _nftAddress, uint256 _tokenId, uint256 _price) public {
+    function updatePrice(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(_price > 0, "nothing is free");
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
@@ -80,7 +85,7 @@ contract HeroMarket is Ownable {
         emit UpdatePrice(itemSale.orderId, _nftAddress, _tokenId, _msgSender(), _price);
     }
 
-    function fillOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public {
+    function fillOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         require(itemSale.price == _price, "Price not match!");
@@ -112,22 +117,22 @@ contract HeroMarket is Ownable {
 
             currentOrderId++;
             markets[_nftAddress][_tokenId] = ItemSale({
-            orderId: currentOrderId,
-            nftAddress: _nftAddress,
-            tokenId: _tokenId,
-            price: _price,
-            owner: _msgSender()
+            orderId : currentOrderId,
+            nftAddress : _nftAddress,
+            tokenId : _tokenId,
+            price : _price,
+            owner : _msgSender()
             });
         } else {
             IERC721(_nftAddress).transferFrom(address(this), _msgSender(), _tokenId);
             tokenSales[_nftAddress].remove(_tokenId);
             sellerTokens[_nftAddress][itemSale.owner].remove(_tokenId);
             markets[_nftAddress][_tokenId] = ItemSale({
-            orderId: 0,
-            nftAddress: address(0),
-            tokenId: 0,
-            price: 0,
-            owner: address(0)
+            orderId : 0,
+            nftAddress : address(0),
+            tokenId : 0,
+            price : 0,
+            owner : address(0)
             });
         }
     }
@@ -150,6 +155,14 @@ contract HeroMarket is Ownable {
 
     function getSale(address _nftAddress, uint256 _tokenId) public view returns (ItemSale memory) {
         if (tokenSales[_nftAddress].contains(_tokenId)) return markets[_nftAddress][_tokenId];
-        return ItemSale({orderId: 0, nftAddress: address(0), tokenId: 0, owner: address(0), price: 0});
+        return ItemSale({orderId : 0, nftAddress : address(0), tokenId : 0, owner : address(0), price : 0});
+    }
+
+    function listNft(address _nftAddress) external onlyOwner {
+        _listedNfts[_nftAddress] = true;
+    }
+
+    function delistNft(address _nftAddress) external onlyOwner {
+        _listedNfts[_nftAddress] = false;
     }
 }
