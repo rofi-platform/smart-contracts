@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract HeroMarket is Ownable {
+contract TicketMarket is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -32,7 +32,7 @@ contract HeroMarket is Ownable {
 
     uint256 public currentOrderId;
     uint256 public feeMarketRate = 4; // unit %.
-    IERC20 public immutable busdBEP20;
+    IERC20 public immutable currency;
 
     mapping(address => bool) public _listedNfts;
     mapping(address => EnumerableSet.UintSet) private tokenSales;
@@ -40,8 +40,8 @@ contract HeroMarket is Ownable {
     mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
 
 
-    constructor(address _eggERC20){
-        busdBEP20 = IERC20(_eggERC20);
+    constructor(address _currencyERC20){
+        currency = IERC20(_currencyERC20);
     }
 
     modifier onlyListedNft(address _nftAddress) {
@@ -91,9 +91,9 @@ contract HeroMarket is Ownable {
         require(itemSale.price == _price, "Price not match!");
         uint256 feeMarket = itemSale.price.mul(feeMarketRate).div(100);
         if (feeMarket > 0) {
-            busdBEP20.transferFrom(_msgSender(), owner(), feeMarket);
+            currency.transferFrom(_msgSender(), owner(), feeMarket);
         }
-        busdBEP20.transferFrom(
+        currency.transferFrom(
             _msgSender(),
             itemSale.owner,
             itemSale.price.sub(feeMarket)
