@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract TicketMarket is Ownable {
+contract EssenceMarket is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
 
