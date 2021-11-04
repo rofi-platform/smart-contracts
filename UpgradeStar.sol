@@ -66,7 +66,7 @@ contract UpgradeStar is IHero, Ownable {
         Hero memory hero = nft.getHero(_heroId);
         Hero memory subHero = nft.getHero(_subHeroId);
         require(hero.star == subHero.star, "must same star");
-        require(hero.heroType == subHero.heroType, "must same hero type");
+        // require(hero.heroType == subHero.heroType, "must same hero type");
         require(latestUpgradeStar[_heroId] == 0 || (block.number - latestUpgradeStar[_heroId]) >= 300, "must wait a least 300 blocks");
         require(_level == 30, "level must be 30");
         bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
