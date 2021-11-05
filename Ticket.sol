@@ -62,6 +62,10 @@ contract HeroFiTicket is ERC721Enumerable, Ownable {
         emit BuyTicket(nextTokenId, msg.sender);
     }
     
+    function getTicket(uint256 _ticketId) public view returns (Ticket memory) {
+        return tickets[_ticketId];
+    }
+    
     function setTicketPrice(uint256 _price) external onlyOwner {
         ticketPrice = _price;
     }
