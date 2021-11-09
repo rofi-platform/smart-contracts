@@ -20,7 +20,7 @@ contract RewardManager is Ownable {
     
     uint256 public rewardClaimedToday;
     
-    uint8 public lockedPercentage = 90;
+    uint8 public lockedPercentage = 80;
     
     mapping (address => bool) _callers;
     
@@ -63,5 +63,9 @@ contract RewardManager is Ownable {
     
     function updateRofi(address _newAddress) external onlyOwner {
         rofi = IROFI(_newAddress);
+    }
+    
+    function setRewardClaimedToday(uint256 _value) external onlyOwner {
+        rewardClaimedToday = _value;
     }
 }

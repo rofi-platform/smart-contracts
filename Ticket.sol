@@ -19,11 +19,11 @@ contract HeroFiTicket is ERC721Enumerable, Ownable {
     
     IERC20 public paymentToken;
     
-    uint256 public ticketPrice = 100000*10**18;
-    
     address public deadAddress = 0x000000000000000000000000000000000000dEaD;
     
-    mapping(uint256 => Ticket) internal tickets;
+    mapping (uint256 => Ticket) internal tickets;
+    
+    mapping (uint8 => uint256) ticketFees;
     
     event BuyTicket(uint256 indexed tokenId, address to);
 
@@ -52,8 +52,8 @@ contract HeroFiTicket is ERC721Enumerable, Ownable {
     }
     
     function buyTicket(uint8 _star) external {
-        require(_star >= 1 && _star <= 6, "invalid ticket");
-        paymentToken.transferFrom(msg.sender, deadAddress, ticketPrice * _star);
+        require(_star >= 2 && _star <= 6, "invalid ticket");
+        paymentToken.transferFrom(msg.sender, deadAddress, ticketFees[_star]);
         uint256 nextTokenId = _getNextTokenId();
         _mint(msg.sender, nextTokenId);
         tickets[nextTokenId] = Ticket({
@@ -66,7 +66,20 @@ contract HeroFiTicket is ERC721Enumerable, Ownable {
         return tickets[_ticketId];
     }
     
-    function setTicketPrice(uint256 _price) external onlyOwner {
-        ticketPrice = _price;
+    function updateFee(uint8[] memory _stars, uint256[] memory _fees) external onlyOwner {
+        uint256 length = _stars.length;
+        require(length == _fees.length, "params not correct");
+        for (uint256 i = 0; i < length; i++) {
+            uint8 _star = uint8(_stars[i]);
+            ticketFees[_star] = uint256(_fees[i]*10**18);
+        }
+    }
+    
+    function getFee(uint8 _star) public view returns (uint256) {
+        return ticketFees[_star];
+    }
+    
+    function setPaymentToken(address _paymentToken) external onlyOwner {
+        paymentToken = IERC20(_paymentToken);
     }
 }

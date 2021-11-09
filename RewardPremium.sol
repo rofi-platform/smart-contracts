@@ -35,6 +35,23 @@ contract RewardPremium is Ownable {
         emit RewardClaim(_user, _reward, _timestamp);
     }
     
+    function claimRewards(uint256[] memory _timestamps, address _user, uint256[] memory _rewards, bytes32[][] memory _proofs) public {
+        uint256 len = _timestamps.length;
+        require(len == _proofs.length, "Mismatching inputs");
+
+        uint256 total = 0;
+        
+        for(uint256 i = 0; i < len; i++) {
+            bytes32 leaf = keccak256(abi.encodePacked(_user, _rewards[i]));
+            require(MerkleProof.verify(_proofs[i], roots[_timestamps[i]], leaf), "proof not valid");
+            require(!claimed[_timestamps[i]][_user], "claimed");
+            claimed[_timestamps[i]][_user] = true;
+            total += _rewards[i];
+        }
+        
+        rewardManager.mintReward(_user, total);
+    }
+    
     function updateMerkleRoot(uint256 _timestamp, bytes32 _root) external onlyOwner {
         roots[_timestamp] = _root;
 
