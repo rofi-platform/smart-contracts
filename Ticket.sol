@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
-contract HeroFiTicket is ERC721Enumerable, Ownable {
+contract LGEssenceTicket is ERC721Enumerable, Ownable {
     using SafeMath for uint256;
     
     struct Ticket {
@@ -29,7 +29,7 @@ contract HeroFiTicket is ERC721Enumerable, Ownable {
 
     constructor(
         address _paymentToken
-    ) ERC721("LG-Ticket", "LGTicket") {
+    ) ERC721("LG Essence Ticket", "LGESSENCE") {
         paymentToken = IERC20(_paymentToken);
     }
     
