@@ -145,12 +145,12 @@ contract EssenceMarket is Ownable {
         return tokenSales[_nftAddress].at(index);
     }
 
-    function tokenSaleOfOwnerByIndex(address _nftAddress, address _seller, uint256 index)
+    function tokensSaleOfOwner(address _nftAddress, address _seller)
     public
     view
-    returns (uint256)
+    returns (uint256[] memory)
     {
-        return sellerTokens[_nftAddress][_seller].at(index);
+        return sellerTokens[_nftAddress][_seller].values();
     }
 
     function getSale(address _nftAddress, uint256 _tokenId) public view returns (ItemSale memory) {
