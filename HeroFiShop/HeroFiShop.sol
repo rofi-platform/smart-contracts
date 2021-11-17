@@ -5,13 +5,14 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface IPayRofi {
-    function payRofi(address _sender, uint256 _amount) external;
+interface IROFI {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
 contract HeroFiShop is Ownable, Pausable {
-    IPayRofi public payRofi;
-    IPayRofi public payLockedRofi;
+    address public payRofiUnlocked;
+    address public payRofiLocked;
+    IROFI public immutable rofi;
 
     struct Pack {
         string description;
@@ -28,9 +29,10 @@ contract HeroFiShop is Ownable, Pausable {
     event DisablePack(uint256 indexed packId);
     event EnablePack(uint256 indexed packId);
 
-    constructor (address _payRofi, address _payLockedRofi){
-        payRofi = IPayRofi(_payRofi);
-        payLockedRofi = IPayRofi(_payLockedRofi);
+    constructor (address _rofi, address _payRofiUnlocked, address _payRofiLocked){
+        rofi = IROFI(_rofi);
+        payRofiUnlocked = _payRofiUnlocked;
+        payRofiLocked = _payRofiLocked;
     }
 
     function addPack(uint256 _price, string memory _description) public onlyOwner {
@@ -54,25 +56,25 @@ contract HeroFiShop is Ownable, Pausable {
         emit EnablePack(_packId);
     }
 
-    function setPayRofi(address _payRofi) public onlyOwner {
-        payRofi = IPayRofi(_payRofi);
+    function setPayRofiUnlocked(address _payRofiUnlocked) public onlyOwner {
+        payRofiUnlocked = _payRofiUnlocked;
     }
 
-    function setPayLockedRofi(address _payLockedRofi) public onlyOwner {
-        payLockedRofi = IPayRofi(_payLockedRofi);
+    function setPayRofiLocked(address _payRofiLocked) public onlyOwner {
+        payRofiLocked = _payRofiLocked;
     }
 
-    function buyPack(uint256 _packId) public whenNotPaused {
+    function buyPackWithUnlockedRofi(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
-        payRofi.payRofi(_msgSender(), pack.price);
+        rofi.transferFrom(_msgSender(), payRofiUnlocked, pack.price);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
     }
 
-    function buyPackWithLocked(uint256 _packId) public whenNotPaused {
+    function buyPackWithLockedRofi(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
-        payLockedRofi.payRofi(_msgSender(), pack.price);
+        rofi.transferFrom(_msgSender(), payRofiLocked, pack.price);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
     }
 
