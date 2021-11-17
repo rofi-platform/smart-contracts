@@ -11,6 +11,7 @@ interface IPayRofi {
 
 contract HeroFiShop is Ownable, Pausable {
     IPayRofi public payRofi;
+    IPayRofi public payLockedRofi;
 
     struct Pack {
         string description;
@@ -27,8 +28,9 @@ contract HeroFiShop is Ownable, Pausable {
     event DisablePack(uint256 indexed packId);
     event EnablePack(uint256 indexed packId);
 
-    constructor (address _payRofi){
+    constructor (address _payRofi, address _payLockedRofi){
         payRofi = IPayRofi(_payRofi);
+        payLockedRofi = IPayRofi(_payLockedRofi);
     }
 
     function addPack(uint256 _price, string memory _description) public onlyOwner {
@@ -56,10 +58,21 @@ contract HeroFiShop is Ownable, Pausable {
         payRofi = IPayRofi(_payRofi);
     }
 
+    function setPayLockedRofi(address _payLockedRofi) public onlyOwner {
+        payLockedRofi = IPayRofi(_payLockedRofi);
+    }
+
     function buyPack(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
         payRofi.payRofi(_msgSender(), pack.price);
+        emit BuyPack(_packId, _msgSender(), block.timestamp);
+    }
+
+    function buyPackWithLocked(uint256 _packId) public whenNotPaused {
+        Pack storage pack = packs[_packId];
+        require(pack.isEnable, "This pack is disabled!");
+        payLockedRofi.payRofi(_msgSender(), pack.price);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
     }
 
