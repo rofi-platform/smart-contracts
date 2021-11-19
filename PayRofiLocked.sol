@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 interface IROFI {
     function transfer(address recipient, uint256 amount) external returns (bool);
     
-    function balanceOf(address account) external view returns (uint256);
+    function unlockedOf(address account) external view returns (uint256);
 }
 
 contract PayRofiLocked is Ownable {
@@ -39,7 +39,7 @@ contract PayRofiLocked is Ownable {
     }
     
     function distributeRofi() external onlyOwner {
-        uint256 balance = rofi.balanceOf(address(this));
+        uint256 balance = rofi.unlockedOf(address(this));
         uint256 amount = balance.div(100);
         rofi.transfer(address(0x000000000000000000000000000000000000dEaD), amount.mul(burn_percentage));
         rofi.transfer(dev_team_address, amount.mul(dev_team_percentage));
