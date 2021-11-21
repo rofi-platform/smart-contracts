@@ -29,8 +29,8 @@ interface INFT is IERC721, IHero {
 	function getHero(uint256 _tokenId) external view returns (Hero memory);
 }
 
-interface IPayRofi {
-    function payRofi(address _sender, uint256 _amount) external;
+interface IROFI {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
 contract UpgradeStar is IHero, Ownable {
@@ -38,7 +38,9 @@ contract UpgradeStar is IHero, Ownable {
     
     INFT private nft;
     
-    IPayRofi private payRofi;
+    IROFI private rofi;
+    
+    address public payRofiUnlocked;
     
     bytes32 public merkleRoot;
     
@@ -52,12 +54,13 @@ contract UpgradeStar is IHero, Ownable {
     
     uint nonce = 0;
     
-    address public deadAddress = 0x05ea9701d37ca0db25993248e1d8461A8b50f24a;
+    address public deadAddress = 0x000000000000000000000000000000000000dEaD;
     
-    constructor(address _nft, address _cnft, address _payRofi) {
+    constructor(address _nft, address _cnft, address _rofi, address _payRofiUnlocked) {
         nft = INFT(_nft);
         cnft = CNFT(_cnft);
-        payRofi = IPayRofi(_payRofi);
+        rofi = IROFI(_rofi);
+        payRofiUnlocked = _payRofiUnlocked;
     }
     
     function upgradeStar(uint256 _heroId, uint8 _level, bytes32[] memory _proof, uint256 _subHeroId) external {
@@ -66,14 +69,13 @@ contract UpgradeStar is IHero, Ownable {
         Hero memory hero = nft.getHero(_heroId);
         Hero memory subHero = nft.getHero(_subHeroId);
         require(hero.star == subHero.star, "must same star");
-        // require(hero.heroType == subHero.heroType, "must same hero type");
         require(latestUpgradeStar[_heroId] == 0 || (block.number - latestUpgradeStar[_heroId]) >= 300, "must wait a least 300 blocks");
         require(_level == 30, "level must be 30");
         bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
         require(MerkleProof.verify(_proof, merkleRoot, leaf), "data is outdated or invalid");
         uint8 currentStar = hero.star;
         uint256 fee = upgradeStarFee[currentStar];
-        payRofi.payRofi(_msgSender(), fee);
+        rofi.transferFrom(_msgSender(), payRofiUnlocked, fee);
         bool isSuccess = randomUpgrade(currentStar);
         if (isSuccess) {
             uint8 newStar = currentStar + 1;
@@ -136,8 +138,12 @@ contract UpgradeStar is IHero, Ownable {
         cnft = CNFT(_newAddress);
     }
     
-    function updatePayRofi(address _newAddress) external onlyOwner {
-        payRofi = IPayRofi(_newAddress);
+    function updatePayRofiUnlocked(address _newAddress) external onlyOwner {
+        payRofiUnlocked = _newAddress;
+    }
+    
+    function updateRofi(address _newAddress) external onlyOwner {
+        rofi = IROFI(_newAddress);
     }
     
     function updateFee(uint8[] memory _stars, uint256[] memory _fees) external onlyOwner {
