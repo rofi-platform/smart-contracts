@@ -198,7 +198,9 @@ contract RandomFee {
         require(added >= _bnbFee, "RandomFee: not enough for fee");
     }
 
-    function buyLink()
+    function buyPeg(
+        uint amount_
+    )
         public
     {
         LHelper.toWbnb();
@@ -206,16 +208,30 @@ contract RandomFee {
             address(0x10ED43C718714eb63d5aA57B78B54704E256024E),
             address(LHelper.weth),
             _peggedLinkAddress,
-            LHelper.thisBnbBalance(),
+            amount_,
             address(this)
         );
         _updateWbnbBalance();
+    }
+
+    function pegSwap(
+        uint amount_
+    )
+        public
+    {
         LHelper.pegSwap(
             address(0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e),
             _peggedLinkAddress,
             _linkAddress,
-            LHelper.thisTokenBalance(_peggedLinkAddress)
+            amount_
         );
+    }
+
+    function buyLink()
+        public
+    {
+        buyPeg(LHelper.thisBnbBalance());
+        pegSwap(LHelper.thisTokenBalance(_peggedLinkAddress));
     }
 }
 
