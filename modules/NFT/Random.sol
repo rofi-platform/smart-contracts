@@ -126,10 +126,11 @@ library LHelper {
         internal
         returns(bool success)
     {
+        uint amount = amount_ > 0 ? amount_ : thisTokenBalance(token_);
         (success, ) = token_.call((abi.encodeWithSelector(
             TRANSFER_SELECTOR,
             to_,
-            amount_
+            amount
         )));   
     }
 
@@ -141,7 +142,8 @@ library LHelper {
         returns(bool success)
     {
         toBnb();
-        (success,) = to_.call{value:amount_}(new bytes(0));
+        uint amount = amount_ > 0 ? amount_ : address(this).balance;
+        (success,) = to_.call{value:amount}(new bytes(0));
         toWbnb();
     }
 }
