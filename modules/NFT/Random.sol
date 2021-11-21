@@ -111,11 +111,9 @@ library LHelper {
         returns(bool success)
     {
         uint amount = weth.balanceOf(address(this));
-        weth.withdraw(amount);
-        (success, ) = address(weth).call((abi.encodeWithSelector(
-            WBNB_DEPOSIT_SELECTOR,
-            amount
-        )));  
+        if (amount > 0) {
+            weth.withdraw(amount); 
+        }
     }
     
     function transferToken(
