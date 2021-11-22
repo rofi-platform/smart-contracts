@@ -1034,7 +1034,7 @@ contract Pausable is Ownable {
 }
 
 // ROFIToken with Governance.
-contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, IROFI, ReentrancyGuard {
+contract ROFIToken is BEP20('FFORI', 'FFORI'), Pausable, IROFI, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for BEP20;
 
@@ -1266,8 +1266,8 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, IROFI, ReentrancyGuard {
                 _mintUnlocked(recipient, amount);
             }else{
                 _unlocks[sender] = balanceOf(sender);
-                _unlocks[recipient] = _unlocks[recipient].add(amount);
                 _mintUnlocked(recipient, locked_balance);
+                _unlocks[recipient] = _unlocks[recipient].add(amount.sub(locked_balance)); // Add the rest of unlocked amount to recipient
             }
             emit ConsumerDeposit(sender, recipient, amount);
         }else{
