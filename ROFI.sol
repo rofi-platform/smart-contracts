@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2021-10-25
+*/
+
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
@@ -298,7 +302,7 @@ interface IBEP20 {
 }
 
 
-interface ILZ is IBEP20 {
+interface IROFI is IBEP20 {
     function getUnlockFactor(address token) external view returns (uint256);
     function getUnlockBlockGap(address token) external view returns (uint256);
 
@@ -1029,8 +1033,8 @@ contract Pausable is Ownable {
   }
 }
 
-// LZToken with Governance.
-contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
+// ROFIToken with Governance.
+contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, IROFI, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for BEP20;
 
@@ -1091,14 +1095,21 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
     uint256 private _totalUnlocked;
 
     modifier onlyAuthorizedUnlockedMintCaller() {
-        require(_msgSender() == owner() || _authorizedUnlockedMintCaller[_msgSender()],"LZP: UNLOCKED_MINT_CALLER_NOT_AUTHORIZED");
+        require(_msgSender() == owner() || _authorizedUnlockedMintCaller[_msgSender()],"ROFI: UNLOCKED_MINT_CALLER_NOT_AUTHORIZED");
         _;
     }
     
     modifier onlyAuthorizedLockedMintCaller() {
-        require(_msgSender() == owner() || _authorizedUnlockedMintCaller[_msgSender()] || _authorizedLockedMintCaller[_msgSender()],"LZP: LOCKED_MINT_CALLER_NOT_AUTHORIZED");
+        require(_msgSender() == owner() || _authorizedUnlockedMintCaller[_msgSender()] || _authorizedLockedMintCaller[_msgSender()],"ROFI: LOCKED_MINT_CALLER_NOT_AUTHORIZED");
         _;
     }
+    
+    uint256 public _maxCap;
+
+    
+    constructor() public {
+        _maxCap = 100000000 * (10 ** uint256(decimals()));
+    }    
     function getUnlockFactor(address token) external view override returns (uint256) {
         return _unlockFactor[token];
     }
@@ -1145,8 +1156,8 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
     }
     
     function stake(address token, uint256 amount) external override nonReentrant returns (bool) {
-        require(_unlockFactor[token] > 0, "LZ: FACTOR_NOT_SET");
-        require(_unlockBlockGap[token] > 0, "LZ: BLOCK_GAP_NOT_SET");
+        require(_unlockFactor[token] > 0, "ROFI: FACTOR_NOT_SET");
+        require(_unlockBlockGap[token] > 0, "ROFI: BLOCK_GAP_NOT_SET");
         _pullToken(token, _msgSender(), amount);
         LpStakeInfo storage info = _stakingRecords[_msgSender()][token];
         uint256 unlockedAmount = _settleUnlockAmount(_msgSender(), token, info.amountStaked, info.blockNumber);
@@ -1157,9 +1168,9 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
     }
 
     function unstake(address token, uint256 amount) external override nonReentrant returns (bool) {
-        require(amount > 0, "LZ: ZERO_UNSTAKE_AMOUNT");
+        require(amount > 0, "ROFI: ZERO_UNSTAKE_AMOUNT");
         LpStakeInfo storage info = _stakingRecords[_msgSender()][token];
-        require(amount <= info.amountStaked, "LZ: UNSTAKE_AMOUNT_EXCEEDED");
+        require(amount <= info.amountStaked, "ROFI: UNSTAKE_AMOUNT_EXCEEDED");
         uint256 unlockedAmount = _settleUnlockAmount(_msgSender(), token, info.amountStaked, info.blockNumber);
         _updateStakeRecord(_msgSender(), token, info.amountStaked.sub(amount));
         _mintUnlocked(_msgSender(), unlockedAmount);
@@ -1183,12 +1194,14 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
     }
 
     function mintUnlockedToken(address to, uint256 amount) onlyAuthorizedUnlockedMintCaller external override {
+        require(amount.add(totalSupply()) <= _maxCap, "ROFI: MAX_CAP_REACHED");
         _mint(to, amount);
         _mintUnlocked(to, amount);
         _moveDelegates(address(0), _delegates[to], amount);
     }
 
     function mintLockedToken(address to, uint256 amount) onlyAuthorizedLockedMintCaller external override {
+        require(amount.add(totalSupply()) <= _maxCap, "ROFI: MAX_CAP_REACHED");
         _mint(to, amount);
         _moveDelegates(address(0), _delegates[to], amount);
     }
@@ -1248,11 +1261,12 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
         require(sender != address(0), "BEP20: transfer from the zero address");
         require(recipient != address(0), "BEP20: transfer to the zero address");
         if (_consumerContracts[recipient]) {
-            uint256 locked_balance = balanceOf(sender).sub(_unlocks[sender]);
+            uint256 locked_balance = balanceOf(sender).add(amount).sub(_unlocks[sender]); // Add amount because in the previous transaction, "amount" has been deducted
             if (amount < locked_balance) {
                 _mintUnlocked(recipient, amount);
             }else{
-                _unlocks[sender] = balanceOf(sender) - amount;
+                _unlocks[sender] = balanceOf(sender);
+                _unlocks[recipient] = _unlocks[recipient].add(amount);
                 _mintUnlocked(recipient, locked_balance);
             }
             emit ConsumerDeposit(sender, recipient, amount);
@@ -1410,9 +1424,9 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
         );
 
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "LZ::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "LZ::delegateBySig: invalid nonce");
-        require(now <= expiry, "LZ::delegateBySig: signature expired");
+        require(signatory != address(0), "ROFI:delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "ROFI:delegateBySig: invalid nonce");
+        require(now <= expiry, "ROFI:delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
@@ -1442,7 +1456,7 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "LZ::getPriorVotes: not yet determined");
+        require(blockNumber < block.number, "ROFI:getPriorVotes: not yet determined");
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -1479,7 +1493,7 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
         internal
     {
         address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying LZs (not scaled);
+        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying ROFIs (not scaled);
         _delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
@@ -1515,7 +1529,7 @@ contract ROFIToken is BEP20('ROFI', 'ROFI'), Pausable, ILZ, ReentrancyGuard {
     )
         internal
     {
-        uint32 blockNumber = safe32(block.number, "LZ::_writeCheckpoint: block number exceeds 32 bits");
+        uint32 blockNumber = safe32(block.number, "ROFI:_writeCheckpoint: block number exceeds 32 bits");
 
         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
