@@ -1034,7 +1034,7 @@ contract Pausable is Ownable {
 }
 
 // ROFIToken with Governance.
-contract ROFIToken is BEP20('FFORI', 'FFORI'), Pausable, IROFI, ReentrancyGuard {
+contract ROFIToken is BEP20('HeroFi', 'ROFI'), Pausable, IROFI, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for BEP20;
 
