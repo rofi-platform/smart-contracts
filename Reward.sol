@@ -29,7 +29,7 @@ contract Reward is Ownable {
     
     event MerkleRootUpdated(uint256 timestamp, bytes32 merkleRoot);
     
-    event RewardClaim(address user, uint256 reward, uint256[] timestamps);
+    event RewardClaim(address indexed user, uint256 reward, uint256[] timestamps);
     
     uint256 public claimLimit;
     

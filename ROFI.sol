@@ -1261,6 +1261,7 @@ contract ROFIToken is BEP20('FFORI', 'FFORI'), Pausable, IROFI, ReentrancyGuard 
         require(sender != address(0), "BEP20: transfer from the zero address");
         require(recipient != address(0), "BEP20: transfer to the zero address");
         if (_consumerContracts[recipient]) {
+            require(!_consumerContracts[sender], "Can't send from consumer to consumer");
             uint256 locked_balance = balanceOf(sender).add(amount).sub(_unlocks[sender]); // Add amount because in the previous transaction, "amount" has been deducted
             if (amount < locked_balance) {
                 _mintUnlocked(recipient, amount);
