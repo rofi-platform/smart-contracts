@@ -31,7 +31,7 @@ interface ITicket is IERC721 {
     function getTicket(uint256 _ticketId) external view returns (Ticket memory);
 }
 
-contract MultiverseGateway is Ownable {
+contract LGGateway is Ownable {
     using SafeMath for uint256;
 
     mapping(uint256 => uint8) heroTypes;
