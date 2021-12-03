@@ -34,9 +34,19 @@ interface ITicket is IERC721 {
 contract MultiverseGateway is Ownable {
     using SafeMath for uint256;
 
-    mapping(uint256 => uint8) public heroTypes;
-    mapping(uint256 => bool) public isSetHeroType;
-    mapping(uint256 => uint256) public usedTicketID;
+    mapping(uint256 => uint8) heroTypes;
+    mapping(uint256 => bool) isSetHeroType;
+    mapping(uint256 => uint256) usedTicketID;
+    mapping(uint256 => Log) internal logs;
+
+    uint256 private _lastLogId;
+
+    struct Log {
+        uint8 newHeroType;
+        bool isSetHeroType;
+        uint256 usedTicketID;
+        uint256 initAt;
+    }
 
     IHERO public heroContract;
     ITicket public ticketContract; 
@@ -58,10 +68,6 @@ contract MultiverseGateway is Ownable {
         ticketContract = ITicket(_ticketContract); 
         _random = new Random();
     }
-
-    function getHeroType(uint256 _tokenId) public view returns (uint8) {
-        return heroTypes[_tokenId];
-    }
     
     function generateHeroType(uint256 _tokenId, uint256 _ticketId) public {
         require(usedTicketID[_tokenId] != 0, "used ticket"); // Check if used ticket
@@ -71,7 +77,7 @@ contract MultiverseGateway is Ownable {
         uint8 ticketStar = ticketContract.getTicket(_ticketId).star;
         require(heroStar == ticketStar, "ticket not valid"); // Check hero star and ticket star
         burnTicket(_ticketId);
-
+        usedTicketID[_tokenId] = _ticketId;
         if (isSetHeroType[_tokenId]) {
             initHero(_tokenId, heroTypes[_tokenId]);
         } else {
@@ -111,6 +117,13 @@ contract MultiverseGateway is Ownable {
     function initHero(uint256 _tokenId, uint8 _heroType) internal {
         heroTypes[_tokenId] = _heroType;
         isSetHeroType[_tokenId] = true;
+        uint256 ticketId = usedTicketID[_tokenId];
+		logs[_tokenId] = Log({
+            newHeroType: _heroType,
+            isSetHeroType: true,
+            usedTicketID: ticketId,
+            initAt: block.timestamp
+		});
         emit NewHero(_tokenId, _heroType);
     }
 
@@ -124,5 +137,9 @@ contract MultiverseGateway is Ownable {
 
     function setTotalHeroTypes(uint8 _totalHeroTypes) external onlyOwner {
         totalHeroTypes = _totalHeroTypes;
+    }
+
+    function getLog(uint256 _tokenId) external view returns (Log memory) {
+        return logs[_tokenId];
     }
 }
