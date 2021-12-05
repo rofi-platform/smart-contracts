@@ -1081,16 +1081,40 @@ contract ROFIToken is BEP20('HeroFi', 'ROFI'), Pausable, IROFI, ReentrancyGuard 
         address indexed recipient,
         uint256 amount
     );
-    
+
+    event SET_AUTHORIZED_LOCKED_MINT_CALLER (
+        address indexed caller
+    );
+
+    event REMOVE_AUTHORIZED_LOCKED_MINT_CALLER (
+        address indexed caller
+    );
+
+    event SET_AUTHORIZED_UNLOCKED_MINT_CALLER (
+        address indexed caller
+    );
+
+    event REMOVE_AUTHORIZED_UNLOCKED_MINT_CALLER (
+        address indexed caller
+    );
+
+    event SET_CONSUMER_CONTRACT (
+        address indexed consumer
+    );
+
+    event REMOVE_CONSUMER_CONTRACT (
+        address indexed consumer
+    );
+
     uint256 public constant FACTOR_DENOMINATOR = 10 ** 8;
 
     mapping (address => uint256) private _unlocks;
     mapping (address => mapping(address => LpStakeInfo)) private _stakingRecords;
     mapping (address => uint256) private _unlockFactor;
     mapping (address => uint256) private _unlockBlockGap;
-    mapping (address => bool) private _authorizedUnlockedMintCaller;
-    mapping (address => bool) private _authorizedLockedMintCaller;
-    mapping (address => bool) private _consumerContracts;
+    mapping (address => bool) public _authorizedUnlockedMintCaller;
+    mapping (address => bool) public _authorizedLockedMintCaller;
+    mapping (address => bool) public _consumerContracts;
 
     uint256 private _totalUnlocked;
 
@@ -1208,26 +1232,32 @@ contract ROFIToken is BEP20('HeroFi', 'ROFI'), Pausable, IROFI, ReentrancyGuard 
 
     function setAuthorizedUnlockedMintCaller(address caller) onlyOwner external override {
         _authorizedUnlockedMintCaller[caller] = true;
+        emit SET_AUTHORIZED_UNLOCKED_MINT_CALLER(caller);
     }
 
     function removeAuthorizedUnlockedMintCaller(address caller) onlyOwner external override {
         _authorizedUnlockedMintCaller[caller] = false;
+        emit REMOVE_AUTHORIZED_UNLOCKED_MINT_CALLER(caller);
     }
 
     function setAuthorizedLockedMintCaller(address caller) onlyOwner external override {
         _authorizedLockedMintCaller[caller] = true;
+        emit SET_AUTHORIZED_LOCKED_MINT_CALLER(caller);
     }
 
     function removeAuthorizedLockedMintCaller(address caller) onlyOwner external override {
         _authorizedLockedMintCaller[caller] = false;
+        emit REMOVE_AUTHORIZED_LOCKED_MINT_CALLER(caller);
     }
 
     function setConsumerContract(address caller) onlyOwner public {
         _consumerContracts[caller] = true;
+        emit SET_CONSUMER_CONTRACT(caller);
     }
 
     function removeConsumerContract(address caller) onlyOwner public {
         _consumerContracts[caller] = false;
+        emit REMOVE_CONSUMER_CONTRACT(caller);
     }
 
     function _settleUnlockAmount(address staker, address token, uint256 lpStaked, uint256 upToBlockNumber) internal view returns (uint256) {
