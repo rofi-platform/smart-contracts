@@ -49,6 +49,8 @@ contract UpgradeStar is IHero, Ownable {
     mapping (uint256 => uint256) latestUpgradeStar;
     
     mapping (uint8 => uint256) upgradeStarFee;
+
+    mapping (uint8 => uint8) successRates;
     
     event StarUpgrade(uint256 heroId, uint256 subHeroId, uint8 newStar, bool isSuccess);
     
@@ -91,7 +93,7 @@ contract UpgradeStar is IHero, Ownable {
     function randomUpgrade(uint8 _currentStar) internal returns (bool) {
         uint random = getRandomNumber();
         uint seed = random % 100;
-        uint successRate = getSuccessRate(_currentStar);
+        uint successRate = successRates[_currentStar];
         if (seed < successRate) {
             return true;
         }
@@ -101,22 +103,6 @@ contract UpgradeStar is IHero, Ownable {
     function getRandomNumber() internal returns (uint) {
         nonce += 1;
         return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
-    }
-    
-    function getSuccessRate(uint8 _currentStar) internal returns (uint) {
-        if (_currentStar == 1) {
-            return 100;
-        }
-        if (_currentStar == 2) {
-            return 50;
-        }
-        if (_currentStar == 3) {
-            return 25;
-        }
-        if (_currentStar == 4) {
-            return 12;
-        }
-        return 6;
     }
     
     function updateMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
@@ -157,5 +143,18 @@ contract UpgradeStar is IHero, Ownable {
     
     function getFee(uint8 _currentStar) public view returns (uint256) {
         return upgradeStarFee[_currentStar];
+    }
+
+    function updateSuccessRate(uint8[] memory _stars, uint8[] memory _rates) external onlyOwner {
+        uint256 length = _stars.length;
+        require(length == _rates.length, "params not correct");
+        for (uint256 i = 0; i < length; i++) {
+            uint8 _star = uint8(_stars[i]);
+            successRates[_star] = uint8(_rates[i]);
+        }
+    }
+
+    function getSuccessRate(uint8 _currentStar) public view returns (uint8) {
+        return successRates[_currentStar];
     }
 }
