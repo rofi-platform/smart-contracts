@@ -31,7 +31,7 @@ interface ITicket is IERC721 {
     function getTicket(uint256 _ticketId) external view returns (Ticket memory);
 }
 
-contract MultiverseGateway is Ownable {
+contract LGGateway is Ownable {
     using SafeMath for uint256;
 
     mapping(uint256 => uint8) heroTypes;
@@ -70,7 +70,7 @@ contract MultiverseGateway is Ownable {
     }
     
     function generateHeroType(uint256 _tokenId, uint256 _ticketId) public {
-        require(usedTicketID[_tokenId] != 0, "used ticket"); // Check if used ticket
+        require(usedTicketID[_tokenId] == 0, "used ticket"); // Check if used ticket
         require(heroContract.ownerOf(_tokenId) == msg.sender, "not owner of hero"); // Check owner of hero
         require(ticketContract.ownerOf(_ticketId) == msg.sender, "not owner of ticket"); // Check owner of ticket
         uint8 heroStar = heroContract.getHero(_tokenId).star;
@@ -141,5 +141,9 @@ contract MultiverseGateway is Ownable {
 
     function getLog(uint256 _tokenId) external view returns (Log memory) {
         return logs[_tokenId];
+    }
+
+    function getUsedTicketId(uint256 _tokenId) external view returns (uint256) {
+        return usedTicketID[_tokenId];
     }
 }
