@@ -111,11 +111,9 @@ library LHelper {
         returns(bool success)
     {
         uint amount = weth.balanceOf(address(this));
-        weth.withdraw(amount);
-        (success, ) = address(weth).call((abi.encodeWithSelector(
-            WBNB_DEPOSIT_SELECTOR,
-            amount
-        )));  
+        if (amount > 0) {
+            weth.withdraw(amount); 
+        }
     }
     
     function transferToken(
@@ -126,10 +124,11 @@ library LHelper {
         internal
         returns(bool success)
     {
+        uint amount = amount_ > 0 ? amount_ : thisTokenBalance(token_);
         (success, ) = token_.call((abi.encodeWithSelector(
             TRANSFER_SELECTOR,
             to_,
-            amount_
+            amount
         )));   
     }
 
@@ -141,7 +140,8 @@ library LHelper {
         returns(bool success)
     {
         toBnb();
-        (success,) = to_.call{value:amount_}(new bytes(0));
+        uint amount = amount_ > 0 ? amount_ : address(this).balance;
+        (success,) = to_.call{value:amount}(new bytes(0));
         toWbnb();
     }
 }
@@ -196,7 +196,9 @@ contract RandomFee {
         require(added >= _bnbFee, "RandomFee: not enough for fee");
     }
 
-    function buyLink()
+    function buyPeg(
+        uint amount_
+    )
         public
     {
         LHelper.toWbnb();
@@ -204,16 +206,30 @@ contract RandomFee {
             address(0x10ED43C718714eb63d5aA57B78B54704E256024E),
             address(LHelper.weth),
             _peggedLinkAddress,
-            LHelper.thisBnbBalance(),
+            amount_,
             address(this)
         );
         _updateWbnbBalance();
+    }
+
+    function pegSwap(
+        uint amount_
+    )
+        public
+    {
         LHelper.pegSwap(
             address(0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e),
             _peggedLinkAddress,
             _linkAddress,
-            LHelper.thisTokenBalance(_peggedLinkAddress)
+            amount_
         );
+    }
+
+    function buyLink()
+        public
+    {
+        buyPeg(LHelper.thisBnbBalance());
+        pegSwap(LHelper.thisTokenBalance(_peggedLinkAddress));
     }
 }
 
@@ -236,34 +252,20 @@ contract Random is VRFConsumerBase, IRandom, RandomFee {
     
     IRandomRequester private _randomRequester;
     
-    // constructor()
-    //     RandomFee(
-    //         address(0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD), 
-    //         address(0x404460C6A5EdE2D891e8297795264fDe62ADBB75)
-    //     )
-    //     VRFConsumerBase(
-    //         0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31,
-    //         0x404460C6A5EdE2D891e8297795264fDe62ADBB75
-    //     )
-    // {
-    //     keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c;
-    //     fee = 0.2 * 10 ** 18;
-    //     _randomRequester = IRandomRequester(msg.sender);
-    // }
-
     constructor()
         RandomFee(
             address(0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD), 
             address(0x404460C6A5EdE2D891e8297795264fDe62ADBB75)
         )
         VRFConsumerBase(
-            0xa555fC018435bef5A13C6c6870a9d4C11DEC329C,
-            0x84b9B910527Ad5C03A9Ca831909E21e236EA7b06
+            0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31,
+            0x404460C6A5EdE2D891e8297795264fDe62ADBB75
         )
     {
-        keyHash = 0xcaf3c3727e033261d383b315559476f48034c13b18f8cafed4d871abe5049186;
-        fee = 0;
-        _randomRequester = IRandomRequester(msg.sender);
+        keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c;
+        fee = 0.2 * 10 ** 18;
+        // NFT contract address
+        _randomRequester = IRandomRequester(address(0x3114c0b418C3798339A765D32391440355DA9dDe));
     }
     
     receive() external payable {

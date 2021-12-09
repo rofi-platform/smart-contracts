@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Test.sol";
+import "./modules/NFT/Random-Multiverse.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -41,6 +41,8 @@ contract LGGateway is Ownable {
 
     uint256 private _lastLogId;
 
+    uint nonce = 0;
+
     struct Log {
         uint8 newHeroType;
         bool isSetHeroType;
@@ -69,7 +71,7 @@ contract LGGateway is Ownable {
         _random = new Random();
     }
     
-    function generateHeroType(uint256 _tokenId, uint256 _ticketId) public {
+    function generateHeroType(uint256 _tokenId, uint256 _ticketId) external payable {
         require(usedTicketID[_tokenId] == 0, "used ticket"); // Check if used ticket
         require(heroContract.ownerOf(_tokenId) == msg.sender, "not owner of hero"); // Check owner of hero
         require(ticketContract.ownerOf(_ticketId) == msg.sender, "not owner of ticket"); // Check owner of ticket
@@ -81,16 +83,19 @@ contract LGGateway is Ownable {
         if (isSetHeroType[_tokenId]) {
             initHero(_tokenId, heroTypes[_tokenId]);
         } else {
+            address(_random).call{value: msg.value}(new bytes(0));
             _random.requestRandomNumber(_tokenId);
         }
     }
     
-    function generateHeroTypeNoTicket(uint256 _tokenId) public {
+    function generateHeroTypeNoTicket(uint256 _tokenId) external {
         require(heroContract.ownerOf(_tokenId) == msg.sender, "not owner"); // Check owner of hero
         uint8 heroStar = heroContract.getHero(_tokenId).star;
         require(heroStar == 1, "only 1 star hero"); // Only 1 star hero
         require(!isSetHeroType[_tokenId], "can not re-generate");
-        _random.requestRandomNumber(_tokenId);
+        uint256 randomNumber = getRandomNumber();
+        uint8 heroType = uint8(randomNumber.mod(totalHeroTypes).add(1));
+        initHero(_tokenId, heroType);
     }
 
     function random() external view returns(address) {
@@ -129,6 +134,11 @@ contract LGGateway is Ownable {
 
     function burnTicket(uint256 _ticketId) internal {
         ticketContract.transferFrom(msg.sender, deadAddress, _ticketId);
+    }
+
+    function getRandomNumber() internal returns (uint256) {
+        nonce += 1;
+        return uint256(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
     }
 
     function getTotalHeroTypes() external view returns (uint8) {
