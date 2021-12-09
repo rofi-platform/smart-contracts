@@ -34,11 +34,11 @@ interface IROFI {
 }
 
 contract UpgradeStar is IHero, Ownable {
-    CNFT private cnft;
+    CNFT public cnft;
     
-    INFT private nft;
+    INFT public nft;
     
-    IROFI private rofi;
+    IROFI public rofi;
     
     address public payRofiUnlocked;
     
