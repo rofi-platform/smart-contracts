@@ -265,7 +265,7 @@ contract Random is VRFConsumerBase, IRandom, RandomFee {
         keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c;
         fee = 0.2 * 10 ** 18;
         // NFT contract address
-        _randomRequester = IRandomRequester(address(0x3114c0b418C3798339A765D32391440355DA9dDe));
+        _randomRequester = IRandomRequester(msg.sender);
     }
     
     receive() external payable {
