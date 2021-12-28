@@ -15,29 +15,27 @@ interface Item {
     function getItemTypes(uint8 _star) external returns (uint256[] memory);
 }
 
-contract Chest is Ownable {
+contract SpecialChestLP is Ownable {
     using SafeMath for uint256;
 
     Item public item;
     Random public random;
 
-    struct ChestType {
-        uint256 price;
-        uint8[] percents;
-        address paymentToken;
-        bool isAvailable;
-        bool useChainlink;
-    }
+    uint256 public price;
 
-    mapping (uint8 => ChestType) chests;
+    uint8[] public percents;
 
-    uint nonce = 0;
+    address public paymentToken;
 
     address public receiver;
 
     uint256 private _latestRequestId;
 
-    mapping (uint256 => uint8) requestChestId;
+    uint256 public lpPerChest;
+
+    mapping (address => uint256) stakeRecords;
+
+    mapping (address => uint256) chestOpenRecords;
 
     mapping (uint256 => uint8) requestChestAmount;
 
@@ -50,38 +48,31 @@ contract Chest is Ownable {
         _;
     }
 
-    event ChestOpen(address indexed user, uint8 chestId, uint256[] itemIds, uint256 timestamp);
+    event ChestOpen(address indexed user, uint256[] itemIds, uint256 timestamp);
 
-    constructor(address _item, address _receiver) {
-        item = Item(_item);
+    constructor(uint256 _price, uint8[] memory _percents, address _paymentToken, uint256 _lpPerChest, address _receiver) {
+        price = _price;
+        percents = _percents;
+        paymentToken = _paymentToken;
+        lpPerChest = _lpPerChest;
         receiver = _receiver;
         random = new Random();
     }
 
-    function openChest(uint8 _id, uint8 _amount) external {
+    function openChest(uint8 _amount) external {
+        require(_amount <= getRemainingChestAmount(_msgSender()), "require: exceed allowance");
         require(_amount >= 1, "require: at least 1");
-        ChestType memory chest = chests[_id];
-        require(chest.isAvailable == true, "require: not available");
-        IERC20(chest.paymentToken).transferFrom(_msgSender(), receiver, chest.price.mul(_amount));
-        if (chest.useChainlink) {
-            requestRandomNumber(_msgSender(), _id, _amount, block.timestamp);
-        } else {
-            _openChest(_msgSender(), _id, 0, _amount, false, block.timestamp);
-        }
+        chestOpenRecords[_msgSender()] += _amount;
+        IERC20(paymentToken).transferFrom(_msgSender(), receiver, price.mul(_amount));
+        requestRandomNumber(_msgSender(), _amount, block.timestamp);
     }
 
-    function _openChest(address _user, uint8 _id, uint8 _randomNumber, uint8 _amount, bool _useChainlink, uint256 _timestamp) internal {
-        ChestType memory chest = chests[_id];
-        uint8[] memory percents = chest.percents;
+    function _openChest(address _user, uint8 _randomNumber, uint8 _amount, uint256 _timestamp) internal {
         uint8 time = 0;
         uint256[] memory itemIds = new uint256[](_amount);
         while (time < _amount) {
             uint8 star;
-            if (_useChainlink) {
-                _randomNumber = uint8(uint256(keccak256(abi.encode(_randomNumber, time))).mod(100).add(1));
-            } else {
-                _randomNumber = uint8(getRandomNumber().mod(100).add(1));
-            }
+            _randomNumber = uint8(uint256(keccak256(abi.encode(_randomNumber, time))).mod(100).add(1));
             star = getItemStar(percents, _randomNumber);
             uint256[] memory itemTypes = item.getItemTypes(star);
             uint256 totalTypes = itemTypes.length;
@@ -91,7 +82,7 @@ contract Chest is Ownable {
             itemIds[time] = newItemId;
             time++;
         }
-        emit ChestOpen(_user, _id, itemIds, _timestamp);
+        emit ChestOpen(_user, itemIds, _timestamp);
     }
 
     function getItemStar(uint8[] memory _percents, uint8 _randomNumber) internal returns (uint8) {
@@ -107,15 +98,9 @@ contract Chest is Ownable {
         return star;
     }
 
-    function getRandomNumber() internal returns (uint256) {
-        nonce += 1;
-        return uint256(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
-    }
-
-    function requestRandomNumber(address _user, uint8 _id, uint8 _amount, uint256 _timestamp) internal {
+    function requestRandomNumber(address _user, uint8 _amount, uint256 _timestamp) internal {
         uint256 requestId = getNextRequestId();
         requestUser[requestId] = _user;
-        requestChestId[requestId] = _id;
         requestChestAmount[requestId] = _amount;
         requestTimestamp[requestId] = _timestamp;
         incrementRequestId();
@@ -124,33 +109,41 @@ contract Chest is Ownable {
 
     function submitRandomness(uint _requestId, uint _randomness) external onlyRandom {
         address user = requestUser[_requestId];
-        uint8 chestId = requestChestId[_requestId];
         uint8 amount = requestChestAmount[_requestId];
         uint256 timestamp = requestTimestamp[_requestId];
-        _openChest(user, chestId, uint8(_randomness), amount, true, timestamp);
+        _openChest(user, uint8(_randomness), amount, timestamp);
     }
 
-    function updateChest(uint8 _id, uint256 _price, uint8[] memory _percents, address _paymentToken, bool _useChainlink) external onlyOwner {
-        uint256 length = _percents.length;
-        require(length == 6, "require: need 6");
-        require(_price > 0, "require: chest price must > 0");
-        require(_paymentToken != address(0), "payment token must != zero address");
-        chests[_id] = ChestType({
-            price: _price,
-            percents: _percents,
-            paymentToken: _paymentToken,
-            useChainlink: _useChainlink,
-            isAvailable: true
-        });
+    function updateChestPrice(uint256 _price) external onlyOwner {
+        price = _price;
     }
 
-    function updateChestAvailable(uint8 _id, bool _available) external onlyOwner {
-        ChestType memory chest = chests[_id];
-        chest.isAvailable = _available;
+    function updateChestPercents(uint8[] memory _percents) external onlyOwner {
+        percents = _percents;
     }
 
-    function getChest(uint8 _id) public view returns (ChestType memory) {
-        return chests[_id];
+    function updatePaymentToken(address _paymentToken) external onlyOwner {
+        paymentToken = _paymentToken;
+    }
+
+    function updateLpPerChest(uint256 _lpPerChest) external onlyOwner {
+        lpPerChest = _lpPerChest;
+    }
+
+    function getStakedAmount(address _staker) public view returns (uint256) {
+        return stakeRecords[_staker];
+    }
+
+    function getChestOpenedAmout(address _staker) public view returns (uint256) {
+        return chestOpenRecords[_staker];
+    }
+
+    function getTotalChestCanOpen(address _staker) public view returns (uint256) {
+        return stakeRecords[_staker].div(lpPerChest);
+    }
+
+    function getRemainingChestAmount(address _staker) public view returns (uint256) {
+        return getTotalChestCanOpen(_staker).sub(getChestOpenedAmout(_staker));
     }
 
     function getNextRequestId() private view returns (uint256) {
@@ -175,5 +168,19 @@ contract Chest is Ownable {
 
     function setBnbFee(uint256 _bnbFee) external onlyOwner {
         random.setBnbFee(_bnbFee);
+    }
+
+    function addStakeRecords(address[] memory _stakers, uint256[] memory _amounts) external onlyOwner {
+        uint256 length = _stakers.length;
+        require(length == _amounts.length, "params not correct");
+        for (uint256 i = 0; i < length; i++) {
+            address staker = _stakers[i];
+            uint256 amount = uint256(_amounts[i]);
+            stakeRecords[staker] = amount;
+        }
+    }
+
+    function getStakeRecord(address _staker) external view returns (uint256) {
+        return stakeRecords[_staker];
     }
 }

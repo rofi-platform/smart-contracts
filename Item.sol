@@ -11,14 +11,14 @@ contract ItemNFT is ERC721, Ownable {
 
     struct Item {
         uint8 star;
-        uint8 itemType;
+        uint256 itemType;
     }
 
     uint256 private _latestItemId;
 
     mapping (uint256 => Item) public items;
 
-    mapping (uint8 => uint8[]) public starToTypes;
+    mapping (uint8 => uint256[]) public starToTypes;
 
     mapping (address => bool) public minters;
 
@@ -37,7 +37,7 @@ contract ItemNFT is ERC721, Ownable {
         _incrementItemId();
     }
 
-    function mintItem(address to, uint8 _star, uint8 _itemType) external onlyMinter {
+    function mintItem(address to, uint8 _star, uint256 _itemType) external onlyMinter {
         uint256 nextItemId = _getNextItemId();
         _mint(to, nextItemId);
         items[nextItemId] = Item({
@@ -66,12 +66,12 @@ contract ItemNFT is ERC721, Ownable {
         _latestItemId++;
     }
 
-    function addTypes(uint8 _star, uint8[] memory _types) external onlyOwner {
+    function addTypes(uint8 _star, uint256[] memory _types) external onlyOwner {
         require(_star >= 1 && _star <= 6, "require: star 1 - 6");
         starToTypes[_star] = _types;
     }
 
-    function getItemTypes(uint8 _star) external view returns (uint8[] memory) {
+    function getItemTypes(uint8 _star) external view returns (uint256[] memory) {
         return starToTypes[_star];
     }
 
