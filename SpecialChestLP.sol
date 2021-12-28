@@ -50,11 +50,12 @@ contract SpecialChestLP is Ownable {
 
     event ChestOpen(address indexed user, uint256[] itemIds, uint256 timestamp);
 
-    constructor(uint256 _price, uint8[] memory _percents, address _paymentToken, uint256 _lpPerChest, address _receiver) {
+    constructor(uint256 _price, uint8[] memory _percents, address _paymentToken, uint256 _lpPerChest, address _item, address _receiver) {
         price = _price;
         percents = _percents;
         paymentToken = _paymentToken;
         lpPerChest = _lpPerChest;
+        item = Item(_item);
         receiver = _receiver;
         random = new Random();
     }

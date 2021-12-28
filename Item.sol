@@ -12,6 +12,8 @@ contract ItemNFT is ERC721, Ownable {
     struct Item {
         uint8 star;
         uint256 itemType;
+        uint256 bornAt;
+        uint256 lastUpdate;
     }
 
     uint256 private _latestItemId;
@@ -22,10 +24,21 @@ contract ItemNFT is ERC721, Ownable {
 
     mapping (address => bool) public minters;
 
+    mapping (address => bool) public updaters;
+
     modifier onlyMinter() {
         require(minters[msg.sender], "require: only Minter");
         _;
     }
+
+    modifier onlyUpdater() {
+        require(updaters[msg.sender], "require: only Updaters");
+        _;
+    }
+
+    event NewItem(uint256 itemId, uint8 star, uint256 itemType, uint256 bornAt, uint256 lastUpdate);
+
+    event RenewLastUpdate(uint256 itemId, uint256 newLastUpdate);
 
     constructor() ERC721("Herofi Item", "HEROITEMM") {
 
@@ -42,8 +55,17 @@ contract ItemNFT is ERC721, Ownable {
         _mint(to, nextItemId);
         items[nextItemId] = Item({
             star: _star,
-            itemType: _itemType
+            itemType: _itemType,
+            bornAt: block.timestamp,
+            lastUpdate: block.timestamp
         });
+        emit NewItem(nextItemId, _star, _itemType, block.timestamp, block.timestamp);
+    }
+
+    function renewLastUpdate(uint256 _itemId) external onlyUpdater {
+        Item memory item = items[_itemId];
+        item.lastUpdate = block.timestamp;
+        emit RenewLastUpdate(_itemId, block.timestamp);
     }
 
     function addMinter(address _minter) external onlyOwner {
@@ -52,6 +74,14 @@ contract ItemNFT is ERC721, Ownable {
 
     function removeMinter(address _minter) external onlyOwner {
         minters[_minter] = false;
+    }
+
+    function addUpdater(address _updater) external onlyOwner {
+        updaters[_updater] = true;
+    }
+
+    function removeUpdater(address _updater) external onlyOwner {
+        updaters[_updater] = false;
     }
 
     function latestItemId() external view returns (uint256) {
