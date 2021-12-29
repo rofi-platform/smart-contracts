@@ -39,7 +39,7 @@ contract ItemNFT is ERC721, Ownable {
     }
 
     modifier onlyUpgrader() {
-        require(updaters[msg.sender], "require: only Upgrader");
+        require(upgraders[msg.sender], "require: only Upgrader");
         _;
     }
 
@@ -47,9 +47,9 @@ contract ItemNFT is ERC721, Ownable {
 
     event RenewLastUpdate(uint256 itemId, uint256 newLastUpdate);
 
-    event UpgraderStar(uint256 itemId, uint256 star);
+    event UpgraderStar(uint256 itemId, uint8 star);
 
-    constructor() ERC721("Herofi Item", "HEROITEMM") {
+    constructor() ERC721("Herofi Item", "HEROITEM") {
 
     }
 
@@ -77,12 +77,10 @@ contract ItemNFT is ERC721, Ownable {
         emit RenewLastUpdate(_itemId, block.timestamp);
     }
 
-    function upgradeStar(uint256 _itemId) external onlyUpgrader {
+    function upgradeStar(uint256 _itemId, uint8 _newStar) external onlyUpgrader {
         Item memory item = items[_itemId];
-        uint8 currentStar = item.star;
-        uint8 newStar = currentStar + 1;
-        item.star = newStar;
-        emit UpgradeStar(_itemId, newStar);
+        item.star = _newStar;
+        emit UpgraderStar(_itemId, _newStar);
     }
 
     function addMinter(address _minter) external onlyOwner {

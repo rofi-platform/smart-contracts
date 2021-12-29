@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Chest.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,7 +18,8 @@ contract SpecialChestLP is Ownable {
     using SafeMath for uint256;
 
     Item public item;
-    Random public random;
+
+    uint nonce = 0;
 
     uint256 public price;
 
@@ -43,11 +43,6 @@ contract SpecialChestLP is Ownable {
 
     mapping (uint256 => address) requestUser;
 
-    modifier onlyRandom {
-        require(msg.sender == address(random), "require Random.");
-        _;
-    }
-
     event ChestOpen(address indexed user, uint256[] itemIds, uint256 timestamp);
 
     constructor(uint256 _price, uint8[] memory _percents, address _paymentToken, uint256 _lpPerChest, address _item, address _receiver) {
@@ -57,7 +52,6 @@ contract SpecialChestLP is Ownable {
         lpPerChest = _lpPerChest;
         item = Item(_item);
         receiver = _receiver;
-        random = new Random();
     }
 
     function openChest(uint8 _amount) external {
@@ -65,15 +59,15 @@ contract SpecialChestLP is Ownable {
         require(_amount >= 1, "require: at least 1");
         chestOpenRecords[_msgSender()] += _amount;
         IERC20(paymentToken).transferFrom(_msgSender(), receiver, price.mul(_amount));
-        requestRandomNumber(_msgSender(), _amount, block.timestamp);
+        _openChest(_msgSender(), _amount, block.timestamp);
     }
 
-    function _openChest(address _user, uint8 _randomNumber, uint8 _amount, uint256 _timestamp) internal {
+    function _openChest(address _user, uint8 _amount, uint256 _timestamp) internal {
         uint8 time = 0;
         uint256[] memory itemIds = new uint256[](_amount);
         while (time < _amount) {
             uint8 star;
-            _randomNumber = uint8(uint256(keccak256(abi.encode(_randomNumber, time))).mod(100).add(1));
+            uint8 _randomNumber = uint8(getRandomNumber().mod(100).add(1));
             star = getItemStar(percents, _randomNumber);
             uint256[] memory itemTypes = item.getItemTypes(star);
             uint256 totalTypes = itemTypes.length;
@@ -99,20 +93,9 @@ contract SpecialChestLP is Ownable {
         return star;
     }
 
-    function requestRandomNumber(address _user, uint8 _amount, uint256 _timestamp) internal {
-        uint256 requestId = getNextRequestId();
-        requestUser[requestId] = _user;
-        requestChestAmount[requestId] = _amount;
-        requestTimestamp[requestId] = _timestamp;
-        incrementRequestId();
-        random.requestRandomNumber(requestId);
-    }
-
-    function submitRandomness(uint _requestId, uint _randomness) external onlyRandom {
-        address user = requestUser[_requestId];
-        uint8 amount = requestChestAmount[_requestId];
-        uint256 timestamp = requestTimestamp[_requestId];
-        _openChest(user, uint8(_randomness), amount, timestamp);
+    function getRandomNumber() internal returns (uint256) {
+        nonce += 1;
+        return uint256(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
     }
 
     function updateChestPrice(uint256 _price) external onlyOwner {
@@ -159,16 +142,8 @@ contract SpecialChestLP is Ownable {
         return _latestRequestId;
     }
 
-    function updateRandom(address payable _newRandom) external onlyOwner {
-        random = Random(_newRandom);
-    }
-
     function updateReceiver(address _receiver) external onlyOwner {
         receiver = _receiver;
-    }
-
-    function setBnbFee(uint256 _bnbFee) external onlyOwner {
-        random.setBnbFee(_bnbFee);
     }
 
     function addStakeRecords(address[] memory _stakers, uint256[] memory _amounts) external onlyOwner {
