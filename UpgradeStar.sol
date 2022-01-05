@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 interface IHero {
 	struct Hero {
@@ -41,22 +40,14 @@ contract UpgradeStar is IHero, Ownable {
     IROFI public rofi;
     
     address public payRofiUnlocked;
-    
-    bytes32 public merkleRoot;
-    
-    event MerkleRootUpdated(bytes32 merkleRoot);
-    
-    mapping (uint256 => uint256) latestUpgradeStar;
-    
+                
     mapping (uint8 => uint256) upgradeStarFee;
 
-    mapping (uint8 => uint8) successRates;
+    mapping (uint8 => uint8) requirements;
     
-    event StarUpgrade(uint256 heroId, uint256 subHeroId, uint8 newStar, bool isSuccess);
-    
-    uint nonce = 0;
-    
-    address public deadAddress = 0x000000000000000000000000000000000000dEaD;
+    event StarUpgrade(uint256 heroId, uint8 newStar);
+        
+    address public deadAddress = 0x81F403fE697CfcF2c21C019bD546C6b36370458c;
     
     constructor(address _nft, address _cnft, address _rofi, address _payRofiUnlocked) {
         nft = INFT(_nft);
@@ -64,56 +55,39 @@ contract UpgradeStar is IHero, Ownable {
         rofi = IROFI(_rofi);
         payRofiUnlocked = _payRofiUnlocked;
     }
-    
-    function upgradeStar(uint256 _heroId, uint8 _level, bytes32[] memory _proof, uint256 _subHeroId) external {
-        require(nft.ownerOf(_heroId) == _msgSender(), "not owner");
-        require(nft.ownerOf(_subHeroId) == _msgSender(), "not owner");
-        Hero memory hero = nft.getHero(_heroId);
-        Hero memory subHero = nft.getHero(_subHeroId);
-        require(hero.star == subHero.star, "must same star");
-        require(latestUpgradeStar[_heroId] == 0 || (block.number - latestUpgradeStar[_heroId]) >= 300, "must wait a least 300 blocks");
-        require(_level == 30, "level must be 30");
-        bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
-        require(MerkleProof.verify(_proof, merkleRoot, leaf), "data is outdated or invalid");
-        uint8 currentStar = hero.star;
+
+    function upgradeStar(uint256[] memory _heroIds) external {
+        uint256 length = _heroIds.length;
+        require(length > 1, "require: at least 2 heroes");
+        uint8[] memory stars = new uint8[](length);
+        bool sameStar = true;
+        bool isOwner = true;
+        for (uint256 i = 0; i < length; i++) {
+            if (nft.ownerOf(_heroIds[i]) != _msgSender()) {
+                isOwner = false;
+            }
+            Hero memory hero = nft.getHero(_heroIds[i]);
+            uint8 star = hero.star;
+            stars[i] = star;
+        }
+        uint8 currentStar = stars[0];
+        for (uint256 j = 0; j < stars.length - 1; j++) {
+            if (stars[j] != stars[j + 1]) {
+                sameStar = false;
+            }
+        }
+        require(isOwner, "require: must be owner");
+        require(sameStar, "require: must same star");
+        uint8 requirement = requirements[currentStar];
+        require(length == requirement, "require: number of heroes not correct");
         uint256 fee = upgradeStarFee[currentStar];
         rofi.transferFrom(_msgSender(), payRofiUnlocked, fee);
-        bool isSuccess = randomUpgrade(currentStar);
-        if (isSuccess) {
-            uint8 newStar = currentStar + 1;
-            cnft.upgrade(_heroId, newStar);   
-            latestUpgradeStar[_heroId] = block.number;
-            nft.transferFrom(_msgSender(), deadAddress, _subHeroId);
-            emit StarUpgrade(_heroId, _subHeroId, newStar, isSuccess);
-        } else {
-            emit StarUpgrade(_heroId, _subHeroId, currentStar, isSuccess);
+        uint8 newStar = currentStar + 1;
+        cnft.upgrade(_heroIds[0], newStar);
+        for (uint256 k = 1; k < length; k++) {
+            nft.transferFrom(_msgSender(), deadAddress, _heroIds[k]);
         }
-    }
-    
-    function randomUpgrade(uint8 _currentStar) internal returns (bool) {
-        uint random = getRandomNumber();
-        uint seed = random % 100;
-        uint successRate = successRates[_currentStar];
-        if (seed < successRate) {
-            return true;
-        }
-        return false;
-    }
-    
-    function getRandomNumber() internal returns (uint) {
-        nonce += 1;
-        return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
-    }
-    
-    function updateMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        merkleRoot = _merkleRoot;
-
-        emit MerkleRootUpdated(merkleRoot);
-    }
-    
-    function verifyMerkleProof(uint256 _heroId, uint8 _level, bytes32[] memory _proof) public view returns (bool valid) {
-        bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
-        return MerkleProof.verify(_proof, merkleRoot, leaf);
+        emit StarUpgrade(_heroIds[0], newStar);
     }
     
     function updateNft(address _newAddress) external onlyOwner {
@@ -145,16 +119,16 @@ contract UpgradeStar is IHero, Ownable {
         return upgradeStarFee[_currentStar];
     }
 
-    function updateSuccessRate(uint8[] memory _stars, uint8[] memory _rates) external onlyOwner {
+    function updateRequirements(uint8[] memory _stars, uint8[] memory _requirements) external onlyOwner {
         uint256 length = _stars.length;
-        require(length == _rates.length, "params not correct");
+        require(length == _requirements.length, "params not correct");
         for (uint256 i = 0; i < length; i++) {
             uint8 _star = uint8(_stars[i]);
-            successRates[_star] = uint8(_rates[i]);
+            requirements[_star] = uint8(_requirements[i]);
         }
     }
 
-    function getSuccessRate(uint8 _currentStar) public view returns (uint8) {
-        return successRates[_currentStar];
+    function getRequirement(uint8 _currentStar) public view returns (uint8) {
+        return requirements[_currentStar];
     }
 }
