@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 interface IHero {
 	struct Hero {
@@ -40,6 +41,12 @@ contract UpgradeStar is IHero, Ownable {
     IROFI public rofi;
     
     address public payRofiUnlocked;
+
+    bytes32 public merkleRoot;
+    
+    event MerkleRootUpdated(bytes32 merkleRoot);
+
+    mapping (uint256 => uint256) latestUpgradeStar;
                 
     mapping (uint8 => uint256) upgradeStarFee;
 
@@ -56,9 +63,13 @@ contract UpgradeStar is IHero, Ownable {
         payRofiUnlocked = _payRofiUnlocked;
     }
 
-    function upgradeStar(uint256[] memory _heroIds) external {
+    function upgradeStar(uint256[] memory _heroIds, uint8 _level, bytes32[] memory _proof) external {
         uint256 length = _heroIds.length;
         require(length > 1, "require: at least 2 heroes");
+        require(latestUpgradeStar[_heroIds[0]] == 0 || (block.number - latestUpgradeStar[_heroIds[0]]) >= 300, "must wait a least 300 blocks");
+        require(_level == 30, "level must be 30");
+        bytes32 leaf = keccak256(abi.encodePacked(_heroIds[0], _level));
+        require(MerkleProof.verify(_proof, merkleRoot, leaf), "data is outdated or invalid");
         uint8[] memory stars = new uint8[](length);
         bool sameStar = true;
         bool isOwner = true;
@@ -78,16 +89,27 @@ contract UpgradeStar is IHero, Ownable {
         }
         require(isOwner, "require: must be owner");
         require(sameStar, "require: must same star");
-        uint8 requirement = requirements[currentStar];
-        require(length == requirement, "require: number of heroes not correct");
+        require(length == requirements[currentStar], "require: number of heroes not correct");
         uint256 fee = upgradeStarFee[currentStar];
         rofi.transferFrom(_msgSender(), payRofiUnlocked, fee);
         uint8 newStar = currentStar + 1;
         cnft.upgrade(_heroIds[0], newStar);
+        latestUpgradeStar[_heroIds[0]] = block.number;
         for (uint256 k = 1; k < length; k++) {
             nft.transferFrom(_msgSender(), deadAddress, _heroIds[k]);
         }
         emit StarUpgrade(_heroIds[0], newStar);
+    }
+
+    function updateMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        merkleRoot = _merkleRoot;
+
+        emit MerkleRootUpdated(merkleRoot);
+    }
+    
+    function verifyMerkleProof(uint256 _heroId, uint8 _level, bytes32[] memory _proof) public view returns (bool valid) {
+        bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
+        return MerkleProof.verify(_proof, merkleRoot, leaf);
     }
     
     function updateNft(address _newAddress) external onlyOwner {
