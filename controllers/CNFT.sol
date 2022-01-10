@@ -30,9 +30,16 @@ contract CNFT is Ownable {
     uint8 private totalHeroTypes = 6;
     
     mapping (address => bool) _spawners;
+
+    mapping (address => bool) _upgraders;
     
     modifier onlySpawner {
         require(_spawners[msg.sender] || owner() == msg.sender, "require Spawner");
+        _;
+    }
+
+    modifier onlyUpgrader {
+        require(_upgraders[msg.sender] || owner() == msg.sender, "require Upgrader");
         _;
     }
 
@@ -76,7 +83,7 @@ contract CNFT is Ownable {
         nftContract.setBnbFee(bnbFee_);
     }
 
-    function upgrade(uint256 _tokenId, uint8 _star) external  onlyOwner {
+    function upgrade(uint256 _tokenId, uint8 _star) external onlyUpgrader {
         nftContract.upgrade(_tokenId, _star);
     }
 
@@ -89,6 +96,10 @@ contract CNFT is Ownable {
     function spawn(address to_, uint8 star_) external payable onlyPaidFee onlySpawner {
         bool _isGenesis = false;
         nftContract.spawn(to_, _isGenesis, star_);
+    }
+
+    function mint(address to, bool _isGenesis, uint8 _star, bytes32 _dna, uint8 _heroType) external onlySpawner {
+        nftContract.mint(to, _isGenesis, _star, _dna, _heroType);
     }
 
     function getStarFromRandomness(uint256 _randomness) external pure returns(uint8) {
@@ -113,11 +124,7 @@ contract CNFT is Ownable {
         totalHeroTypes = _totalHeroTypes;
     }
 
-    function isGenesisActive()
-        public
-        view
-        returns(bool isActive)
-    {
+    function isGenesisActive() public view returns(bool isActive) {
         isActive = _isGenesisActive;
     }
     
@@ -131,5 +138,17 @@ contract CNFT is Ownable {
     
     function removeSpawner(address _address) external onlyOwner {
         _spawners[_address] = false;
+    }
+
+    function upgraders(address _address) external view returns (bool) {
+        return _upgraders[_address];
+    }
+    
+    function addUpgrader(address _address) external onlyOwner {
+        _upgraders[_address] = true;
+    }
+    
+    function removeUpgrader(address _address) external onlyOwner {
+        _upgraders[_address] = false;
     }
 }

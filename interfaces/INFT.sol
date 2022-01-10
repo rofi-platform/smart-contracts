@@ -18,6 +18,8 @@ interface INFT is IUseController, IRandomRequester, IERC721, IHero {
     
     function spawn(address to, bool _isGenesis, uint8 _star) external;
 
+    function mint(address to, bool _isGenesis, uint8 _star, bytes32 _dna, uint8 _heroType) external;
+
     function latestTokenId() external view returns(uint);
     
     function getHero(uint256 _tokenId) external view returns (Hero memory);

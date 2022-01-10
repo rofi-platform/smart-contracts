@@ -214,6 +214,21 @@ contract NFT is BannableERC721, Ownable, UseController {
         
         emit Spawn(nextTokenId, to);
     }
+
+    function mint(address to, bool _isGenesis, uint8 _star, bytes32 _dna, uint8 _heroType) public onlyController {
+        uint256 nextTokenId = _getNextTokenId();
+        _mint(to, nextTokenId);
+        
+        heros[nextTokenId] = Hero({
+            star: _star,
+            heroType: _heroType,
+            dna: _dna,
+            isGenesis: _isGenesis,
+            bornAt: block.timestamp
+        });
+
+        emit InitHero(nextTokenId, _star, _heroType, _dna);
+    }
     
     function updateMerkleRoots(bytes32 _merkleRoot) public onlyOwner {
         merkleRoot = _merkleRoot;

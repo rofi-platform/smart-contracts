@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Multiverse.sol";
+import "./modules/NFT/Random-Test.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -12,7 +12,7 @@ interface IERC721 {
 	function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
-interface IHERO is IERC721 {
+interface IHERO {
     struct Hero {
         uint8 star;
         uint8 heroType;
@@ -20,6 +20,9 @@ interface IHERO is IERC721 {
         bool isGenesis;
         uint256 bornAt;
     }
+}
+
+interface INFT is IERC721, IHERO {
     function getHero(uint256 tokenId_) external view returns (Hero memory);
 }
 
@@ -31,7 +34,11 @@ interface ITicket is IERC721 {
     function getTicket(uint256 _ticketId) external view returns (Ticket memory);
 }
 
-contract LGGateway is Ownable {
+interface ICNFT {
+    function mint(address to, bool _isGenesis, uint8 _star, bytes32 _dna, uint8 _heroType) external;
+}
+
+contract LGGateway is IHERO, Ownable {
     using SafeMath for uint256;
 
     mapping(uint256 => uint8) heroTypes;
@@ -50,7 +57,8 @@ contract LGGateway is Ownable {
         uint256 initAt;
     }
 
-    IHERO public heroContract;
+    INFT public heroContract;
+    ICNFT public lgCnftContract;
     ITicket public ticketContract; 
     Random private _random;
 
@@ -65,8 +73,9 @@ contract LGGateway is Ownable {
         _;
     }
 
-    constructor(address _heroContract, address _ticketContract) {
-        heroContract = IHERO(_heroContract);
+    constructor(address _heroContract, address _lgCnftContract, address _ticketContract) {
+        heroContract = INFT(_heroContract);
+        lgCnftContract = ICNFT(_lgCnftContract);
         ticketContract = ITicket(_ticketContract); 
         _random = new Random();
     }
@@ -129,6 +138,8 @@ contract LGGateway is Ownable {
             usedTicketID: ticketId,
             initAt: block.timestamp
 		});
+        Hero memory hero = heroContract.getHero(_tokenId);
+        lgCnftContract.mint(_msgSender(), hero.isGenesis, hero.star, hero.dna, _heroType);
         emit NewHero(_tokenId, _heroType);
     }
 
