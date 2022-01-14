@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Test.sol";
+import "./modules/NFT/Random-Multiverse.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -139,7 +139,7 @@ contract LGGateway is IHERO, Ownable {
             initAt: block.timestamp
 		});
         Hero memory hero = heroContract.getHero(_tokenId);
-        lgCnftContract.mint(_msgSender(), hero.isGenesis, hero.star, hero.dna, _heroType);
+        lgCnftContract.mint(heroContract.ownerOf(_tokenId), hero.isGenesis, hero.star, hero.dna, _heroType);
         emit NewHero(_tokenId, _heroType);
     }
 
@@ -166,5 +166,13 @@ contract LGGateway is IHERO, Ownable {
 
     function getUsedTicketId(uint256 _tokenId) external view returns (uint256) {
         return usedTicketID[_tokenId];
+    }
+
+    function updateHeroContract(address _heroContract) external onlyOwner {
+        heroContract = INFT(_heroContract);
+    }
+
+    function updateLgCnftContract(address _lgCnftContract) external onlyOwner {
+        lgCnftContract = ICNFT(_lgCnftContract);
     }
 }

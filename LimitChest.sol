@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Test.sol";
+import "./modules/NFT/Random-Chest.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -66,7 +66,7 @@ contract LimitChest is Ownable {
         ChestType memory chest = chests[_id];
         require(chest.isAvailable == true, "require: not available");
         uint256 chestOpenedAmount = records[_id];
-        require(_amount <= chest.totalSupply.sub(chestOpenedAmount), "required: exceed allowance");
+        require(_amount <= chest.totalSupply.sub(chestOpenedAmount), "required: out of stock");
         IERC20(chest.paymentToken).transferFrom(_msgSender(), receiver, chest.price.mul(_amount));
         records[_id] = chestOpenedAmount.add(_amount);
         if (chest.useChainlink) {
