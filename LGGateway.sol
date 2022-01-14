@@ -40,7 +40,20 @@ interface ICNFT {
     function mint(address to, bool _isGenesis, uint8 _star, bytes32 _dna, uint8 _heroType) external;
 }
 
-contract LGGateway is IHERO, Ownable {
+interface ILog {
+    struct Log {
+        uint8 newHeroType;
+        bool isSetHeroType;
+        uint256 usedTicketID;
+        uint256 initAt;
+    }
+}
+
+interface ILGGateway is ILog {
+    function getLog(uint256 _tokenId) external view returns (Log memory);
+}
+
+contract LGGateway is IHERO, ILog, Ownable {
     using SafeMath for uint256;
 
     mapping(uint256 => uint8) heroTypes;
@@ -52,17 +65,11 @@ contract LGGateway is IHERO, Ownable {
 
     uint nonce = 0;
 
-    struct Log {
-        uint8 newHeroType;
-        bool isSetHeroType;
-        uint256 usedTicketID;
-        uint256 initAt;
-    }
-
     INFT public heroContract;
     INFT public lgContract;
     ICNFT public lgCnftContract;
-    ITicket public ticketContract; 
+    ITicket public ticketContract;
+    ILGGateway public oldGateway;
     Random private _random;
 
     event NewHero(uint256 heroTokenId, uint256 lgTokenId, uint256 ticketId, address indexed owner);
@@ -76,11 +83,12 @@ contract LGGateway is IHERO, Ownable {
         _;
     }
 
-    constructor(address _heroContract, address _lgContract, address _lgCnftContract, address _ticketContract) {
+    constructor(address _heroContract, address _lgContract, address _lgCnftContract, address _ticketContract, address _oldGateway) {
         heroContract = INFT(_heroContract);
         lgContract = INFT(_lgContract);
         lgCnftContract = ICNFT(_lgCnftContract);
-        ticketContract = ITicket(_ticketContract); 
+        ticketContract = ITicket(_ticketContract);
+        oldGateway = ILGGateway(_oldGateway);
         _random = new Random();
     }
     
@@ -133,6 +141,8 @@ contract LGGateway is IHERO, Ownable {
     }
 
     function initHero(uint256 _tokenId, uint8 _heroType) internal {
+        Log memory oldLog = oldGateway.getLog(_tokenId);
+        require(!oldLog.isSetHeroType, "invalid token id");
         heroTypes[_tokenId] = _heroType;
         isSetHeroType[_tokenId] = true;
         uint256 ticketId = usedTicketID[_tokenId];
@@ -184,5 +194,9 @@ contract LGGateway is IHERO, Ownable {
 
     function updateLgCnftContract(address _lgCnftContract) external onlyOwner {
         lgCnftContract = ICNFT(_lgCnftContract);
+    }
+
+    function updateOldGatewayContract(address _oldGateway) external onlyOwner {
+        oldGateway = ILGGateway(_oldGateway);
     }
 }
