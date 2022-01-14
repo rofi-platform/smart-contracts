@@ -24,6 +24,8 @@ interface IHERO {
 
 interface INFT is IERC721, IHERO {
     function getHero(uint256 tokenId_) external view returns (Hero memory);
+
+    function latestTokenId() external view returns(uint);
 }
 
 interface ITicket is IERC721 {
@@ -58,11 +60,12 @@ contract LGGateway is IHERO, Ownable {
     }
 
     INFT public heroContract;
+    INFT public lgContract;
     ICNFT public lgCnftContract;
     ITicket public ticketContract; 
     Random private _random;
 
-    event NewHero(uint256 indexed tokenId, uint8 heroType);
+    event NewHero(uint256 heroTokenId, uint256 lgTokenId, uint256 ticketId, address indexed owner);
 
     address public deadAddress = 0x000000000000000000000000000000000000dEaD;
 
@@ -73,8 +76,9 @@ contract LGGateway is IHERO, Ownable {
         _;
     }
 
-    constructor(address _heroContract, address _lgCnftContract, address _ticketContract) {
+    constructor(address _heroContract, address _lgContract, address _lgCnftContract, address _ticketContract) {
         heroContract = INFT(_heroContract);
+        lgContract = INFT(_lgContract);
         lgCnftContract = ICNFT(_lgCnftContract);
         ticketContract = ITicket(_ticketContract); 
         _random = new Random();
@@ -139,8 +143,10 @@ contract LGGateway is IHERO, Ownable {
             initAt: block.timestamp
 		});
         Hero memory hero = heroContract.getHero(_tokenId);
-        lgCnftContract.mint(heroContract.ownerOf(_tokenId), hero.isGenesis, hero.star, hero.dna, _heroType);
-        emit NewHero(_tokenId, _heroType);
+        address owner = heroContract.ownerOf(_tokenId);
+        lgCnftContract.mint(owner, hero.isGenesis, hero.star, hero.dna, _heroType);
+        uint256 lgTokenId = lgContract.latestTokenId();
+        emit NewHero(_tokenId, lgTokenId, ticketId, owner);
     }
 
     function burnTicket(uint256 _ticketId) internal {
@@ -170,6 +176,10 @@ contract LGGateway is IHERO, Ownable {
 
     function updateHeroContract(address _heroContract) external onlyOwner {
         heroContract = INFT(_heroContract);
+    }
+
+    function updateLgContract(address _lgContract) external onlyOwner {
+        lgContract = INFT(_lgContract);
     }
 
     function updateLgCnftContract(address _lgCnftContract) external onlyOwner {
