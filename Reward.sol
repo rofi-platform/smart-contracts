@@ -21,8 +21,6 @@ contract Reward is Ownable {
     
     uint256 public rewardClaimedToday;
     
-    uint8 public lockedPercentage = 80;
-    
     mapping(uint256 => bytes32) roots;
     
     mapping(uint256 => mapping(address => bool)) claimed;
@@ -66,9 +64,7 @@ contract Reward is Ownable {
     function mintReward(address _to, uint256 _reward) internal {
         require(rewardClaimedToday.add(_reward) <= dailyLimit, "exceed daily limit");
         rewardClaimedToday = rewardClaimedToday.add(_reward);
-        uint256 locked = uint256(_reward.div(100).mul(lockedPercentage));
-        rofi.mintLockedToken(_to, locked);
-        rofi.mintUnlockedToken(_to, _reward.sub(locked));
+        rofi.mintUnlockedToken(_to, _reward);
     }
     
     function updateMerkleRoot(uint256 _timestamp, bytes32 _root) external onlyOwner {
@@ -89,11 +85,7 @@ contract Reward is Ownable {
     function setDailyLimit(uint256 _dailyLimit) external onlyOwner {
         dailyLimit = _dailyLimit;
     }
-    
-    function setLockedPercentage(uint8 _percentage) external onlyOwner {
-        lockedPercentage = _percentage;
-    }
-    
+
     function updateRofi(address _newAddress) external onlyOwner {
         rofi = IROFI(_newAddress);
     }
