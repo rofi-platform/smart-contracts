@@ -64,6 +64,8 @@ contract LGGateway is IHERO, ILog, Ownable {
 
     uint256 private _lastLogId;
 
+    uint nonce = 0;
+
     INFT public heroContract;
     INFT public lgContract;
     ICNFT public lgCnftContract;
@@ -120,13 +122,32 @@ contract LGGateway is IHERO, ILog, Ownable {
 		});
         Hero memory hero = heroContract.getHero(_tokenId);
         address owner = heroContract.ownerOf(_tokenId);
-        lgCnftContract.spawn(owner, hero.star);
+        if (hero.star == 1) {
+            uint256 randomNumber = getRandomNumber();
+            uint8 heroType = uint8(randomNumber.mod(totalHeroTypes).add(1));
+            lgCnftContract.mint(owner, hero.isGenesis, hero.star, hero.dna, heroType);
+        } else {
+            lgCnftContract.spawn(owner, hero.star);
+        }
         uint256 lgTokenId = lgContract.latestTokenId();
         emit NewHero(_tokenId, lgTokenId, ticketId, owner);
     }
 
     function burnTicket(uint256 _ticketId) internal {
         ticketContract.transferFrom(msg.sender, deadAddress, _ticketId);
+    }
+
+    function getRandomNumber() internal returns (uint256) {
+        nonce += 1;
+        return uint256(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
+    }
+
+    function getTotalHeroTypes() external view returns (uint8) {
+        return totalHeroTypes;
+    }
+
+    function setTotalHeroTypes(uint8 _totalHeroTypes) external onlyOwner {
+        totalHeroTypes = _totalHeroTypes;
     }
 
     function getLog(uint256 _tokenId) external view returns (Log memory) {
