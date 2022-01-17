@@ -27,7 +27,7 @@ contract CNFT is Ownable {
 
     bool private _isGenesisActive = true;
 
-    uint8 private totalHeroTypes = 6;
+    uint8 private totalHeroTypes = 10;
     
     mapping (address => bool) _spawners;
 

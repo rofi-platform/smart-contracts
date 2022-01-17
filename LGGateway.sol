@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Multiverse.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -26,6 +25,8 @@ interface INFT is IERC721, IHERO {
     function getHero(uint256 tokenId_) external view returns (Hero memory);
 
     function latestTokenId() external view returns(uint);
+
+    function controller() external view returns(address);
 }
 
 interface ITicket is IERC721 {
@@ -38,11 +39,12 @@ interface ITicket is IERC721 {
 
 interface ICNFT {
     function mint(address to, bool _isGenesis, uint8 _star, bytes32 _dna, uint8 _heroType) external;
+
+    function spawn(address to_, uint8 star_) external;
 }
 
 interface ILog {
     struct Log {
-        uint8 newHeroType;
         bool isSetHeroType;
         uint256 usedTicketID;
         uint256 initAt;
@@ -56,40 +58,30 @@ interface ILGGateway is ILog {
 contract LGGateway is IHERO, ILog, Ownable {
     using SafeMath for uint256;
 
-    mapping(uint256 => uint8) heroTypes;
     mapping(uint256 => bool) isSetHeroType;
     mapping(uint256 => uint256) usedTicketID;
     mapping(uint256 => Log) internal logs;
 
     uint256 private _lastLogId;
 
-    uint nonce = 0;
-
     INFT public heroContract;
     INFT public lgContract;
     ICNFT public lgCnftContract;
     ITicket public ticketContract;
     ILGGateway public oldGateway;
-    Random private _random;
 
     event NewHero(uint256 heroTokenId, uint256 lgTokenId, uint256 ticketId, address indexed owner);
 
     address public deadAddress = 0x000000000000000000000000000000000000dEaD;
 
     uint8 private totalHeroTypes = 10;
-    
-    modifier onlyRandom {
-        require(msg.sender == address(_random), "require Random.");
-        _;
-    }
 
-    constructor(address _heroContract, address _lgContract, address _lgCnftContract, address _ticketContract, address _oldGateway) {
+    constructor(address _heroContract, address _lgContract, address _ticketContract, address _oldGateway) {
         heroContract = INFT(_heroContract);
         lgContract = INFT(_lgContract);
-        lgCnftContract = ICNFT(_lgCnftContract);
+        lgCnftContract = ICNFT(lgContract.controller());
         ticketContract = ITicket(_ticketContract);
         oldGateway = ILGGateway(_oldGateway);
-        _random = new Random();
     }
     
     function generateHeroType(uint256 _tokenId, uint256 _ticketId) external payable {
@@ -101,12 +93,7 @@ contract LGGateway is IHERO, ILog, Ownable {
         require(heroStar == ticketStar, "ticket not valid"); // Check hero star and ticket star
         burnTicket(_ticketId);
         usedTicketID[_tokenId] = _ticketId;
-        if (isSetHeroType[_tokenId]) {
-            initHero(_tokenId, heroTypes[_tokenId]);
-        } else {
-            address(_random).call{value: msg.value}(new bytes(0));
-            _random.requestRandomNumber(_tokenId);
-        }
+        initHero(_tokenId);
     }
     
     function generateHeroTypeNoTicket(uint256 _tokenId) external {
@@ -114,66 +101,32 @@ contract LGGateway is IHERO, ILog, Ownable {
         uint8 heroStar = heroContract.getHero(_tokenId).star;
         require(heroStar == 1, "only 1 star hero"); // Only 1 star hero
         require(!isSetHeroType[_tokenId], "can not re-generate");
-        uint256 randomNumber = getRandomNumber();
-        uint8 heroType = uint8(randomNumber.mod(totalHeroTypes).add(1));
-        initHero(_tokenId, heroType);
-    }
-
-    function random() external view returns(address) {
-        return address(_random);
-    }
-    
-    function setBnbFee(uint bnbFee_) external onlyOwner {
-        _random.setBnbFee(bnbFee_);
-    }
-    
-    function updateRandom(address payable _newRandom) public onlyOwner {
-        _random = Random(_newRandom);
+        initHero(_tokenId);
     }
 
     function updateTicketContract(address _newContract) public onlyOwner {
         ticketContract = ITicket(_newContract);
     }
-    
-    function submitRandomness(uint _tokenId, uint _randomness) external onlyRandom {
-        uint8 heroType = uint8(_randomness.mod(totalHeroTypes).add(1));
-        initHero(_tokenId, heroType);
-    }
 
-    function initHero(uint256 _tokenId, uint8 _heroType) internal {
+    function initHero(uint256 _tokenId) internal {
         Log memory oldLog = oldGateway.getLog(_tokenId);
-        require(!oldLog.isSetHeroType, "invalid token id");
-        heroTypes[_tokenId] = _heroType;
+        require(!oldLog.isSetHeroType, "used hero token id");
         isSetHeroType[_tokenId] = true;
         uint256 ticketId = usedTicketID[_tokenId];
 		logs[_tokenId] = Log({
-            newHeroType: _heroType,
             isSetHeroType: true,
             usedTicketID: ticketId,
             initAt: block.timestamp
 		});
         Hero memory hero = heroContract.getHero(_tokenId);
         address owner = heroContract.ownerOf(_tokenId);
-        lgCnftContract.mint(owner, hero.isGenesis, hero.star, hero.dna, _heroType);
+        lgCnftContract.spawn(owner, hero.star);
         uint256 lgTokenId = lgContract.latestTokenId();
         emit NewHero(_tokenId, lgTokenId, ticketId, owner);
     }
 
     function burnTicket(uint256 _ticketId) internal {
         ticketContract.transferFrom(msg.sender, deadAddress, _ticketId);
-    }
-
-    function getRandomNumber() internal returns (uint256) {
-        nonce += 1;
-        return uint256(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
-    }
-
-    function getTotalHeroTypes() external view returns (uint8) {
-        return totalHeroTypes;
-    }
-
-    function setTotalHeroTypes(uint8 _totalHeroTypes) external onlyOwner {
-        totalHeroTypes = _totalHeroTypes;
     }
 
     function getLog(uint256 _tokenId) external view returns (Log memory) {
