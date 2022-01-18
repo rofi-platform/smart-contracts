@@ -16,7 +16,8 @@ contract HeroFiShop is Ownable, Pausable {
 
     struct Pack {
         string description;
-        uint256 price;
+        uint256 unlockPrice;
+        uint256 lockPrice;
         bool isEnable;
     }
 
@@ -29,16 +30,18 @@ contract HeroFiShop is Ownable, Pausable {
     event DisablePack(uint256 indexed packId);
     event EnablePack(uint256 indexed packId);
 
-    constructor (address _rofi, address _payRofiUnlocked, address _payRofiLocked){
+    constructor (address _rofi, address _payRofiUnlocked, address _payRofiLocked, uint256 _initialCurrentPackId){
         rofi = IROFI(_rofi);
         payRofiUnlocked = _payRofiUnlocked;
         payRofiLocked = _payRofiLocked;
+        currentPackId = _initialCurrentPackId;
     }
 
-    function addPack(uint256 _price, string memory _description) public onlyOwner {
+    function addPack(uint256 _unlockPrice, uint256 _lockPrice, string memory _description) public onlyOwner {
         currentPackId++;
         packs[currentPackId] = Pack({
-        price : _price,
+        unlockPrice : _unlockPrice,
+        lockPrice : _lockPrice,
         description : _description,
         isEnable : true
         });
@@ -67,14 +70,14 @@ contract HeroFiShop is Ownable, Pausable {
     function buyPackWithUnlockedRofi(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
-        rofi.transferFrom(_msgSender(), payRofiUnlocked, pack.price);
+        rofi.transferFrom(_msgSender(), payRofiUnlocked, pack.unlockPrice);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
     }
 
     function buyPackWithLockedRofi(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
-        rofi.transferFrom(_msgSender(), payRofiLocked, pack.price);
+        rofi.transferFrom(_msgSender(), payRofiLocked, pack.lockPrice);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
     }
 
