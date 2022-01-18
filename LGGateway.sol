@@ -27,6 +27,8 @@ interface INFT is IERC721, IHERO {
     function latestTokenId() external view returns(uint);
 
     function controller() external view returns(address);
+
+    function random() external view returns(address);
 }
 
 interface ITicket is IERC721 {
@@ -78,6 +80,12 @@ contract LGGateway is IHERO, ILog, Ownable {
 
     uint8 private totalHeroTypes = 10;
 
+    modifier onlyPaidFee {
+        address random = lgContract.random();
+        random.call{value: msg.value}(new bytes(0));
+        _;
+    }
+
     constructor(address _heroContract, address _lgContract, address _ticketContract, address _oldGateway) {
         heroContract = INFT(_heroContract);
         lgContract = INFT(_lgContract);
@@ -86,7 +94,7 @@ contract LGGateway is IHERO, ILog, Ownable {
         oldGateway = ILGGateway(_oldGateway);
     }
     
-    function generateHeroType(uint256 _tokenId, uint256 _ticketId) external payable {
+    function generateHeroType(uint256 _tokenId, uint256 _ticketId) external payable onlyPaidFee {
         require(usedTicketID[_tokenId] == 0, "used ticket"); // Check if used ticket
         require(heroContract.ownerOf(_tokenId) == msg.sender, "not owner of hero"); // Check owner of hero
         require(ticketContract.ownerOf(_ticketId) == msg.sender, "not owner of ticket"); // Check owner of ticket
