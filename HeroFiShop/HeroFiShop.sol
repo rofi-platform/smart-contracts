@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IROFI {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function lockedOf(address account) external view returns (uint256);
 }
 
 contract HeroFiShop is Ownable, Pausable {
@@ -77,6 +78,7 @@ contract HeroFiShop is Ownable, Pausable {
     function buyPackWithLockedRofi(uint256 _packId) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
+        require(rofi.lockedOf(_msgSender()) >= pack.lockPrice, "Insufficient locked ROFI for this pack!");
         rofi.transferFrom(_msgSender(), payRofiLocked, pack.lockPrice);
         emit BuyPack(_packId, _msgSender(), block.timestamp);
     }
