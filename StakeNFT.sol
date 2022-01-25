@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 interface IHero {
 	struct Hero {
@@ -41,11 +42,13 @@ interface Item {
 
 contract StakeNFT is Ownable, IHero {
     using SafeMath for uint256;
+    using EnumerableSet for EnumerableSet.UintSet;
 
     INFT public nft;
     Item public item;
 
     struct Package {
+        uint256 numberHeroRequire;
         uint256 starRequire;
         uint256 stakePeriod;
         uint8 itemStar;
@@ -58,15 +61,18 @@ contract StakeNFT is Ownable, IHero {
 
     struct Record {
         address owner;
-        uint256 nftId;
+        uint256[] nftIds;
         uint256 packageId;
         uint256 stakePeriod;
         uint256 startAt;
+        bool claimed;
     }
 
     mapping (uint256 => Record) public records;
 
     uint256 private _lastRecordId;
+
+    mapping (address => EnumerableSet.UintSet) private stakingRecords;
 
     event Staking(address indexed owner, uint256 packageId, uint256 recordId);
 
@@ -77,40 +83,62 @@ contract StakeNFT is Ownable, IHero {
         item = Item(_item);
     }
 
-    function stake(uint256 _packageId, uint256 _nftId) external {
+    function stake(uint256 _packageId, uint256[] memory _nftIds) external {
         Package memory package = packages[_packageId];
         require(package.available, "not available");
         require(package.total > 0, "out of stake slots");
-        Hero memory hero = nft.getHero(_nftId);
-        require(hero.star >= package.starRequire, "star require not match");
-        nft.transferFrom(msg.sender, address(this), _nftId);
+        uint256 length = _nftIds.length;
+        require(length >= package.numberHeroRequire, "not enough hero");
+        for (uint256 i = 0; i < length; i++) {
+            Hero memory hero = nft.getHero(_nftIds[i]);
+            require(nft.ownerOf(_nftIds[i]) == msg.sender, "not owner");
+            require(hero.star >= package.starRequire, "star require not match");
+            nft.transferFrom(msg.sender, address(this), _nftIds[i]);
+        }
         uint256 nextRecordId = _getNextRecordId();
 		_incrementRecordId();
         records[nextRecordId] = Record({
             owner: msg.sender,
-            nftId: _nftId,
+            nftIds: _nftIds,
             packageId: _packageId,
             stakePeriod: package.stakePeriod,
-            startAt: block.timestamp
+            startAt: block.timestamp,
+            claimed: false
         });
         package.total.sub(1);
+        stakingRecords[msg.sender].add(nextRecordId);
         emit Staking(msg.sender, _packageId, nextRecordId);
     }
 
     function claim(uint256 _recordId) external {
         Record memory record = records[_recordId];
+        require(record.claimed == false, "claimed");
         Package memory package = packages[record.packageId];
         require(package.available, "not available");
         require(msg.sender == record.owner, "not owner");
         require(record.startAt + record.stakePeriod <= block.timestamp, "not enough stake time");
-        nft.transferFrom(address(this), msg.sender, record.nftId);
+        for (uint256 i = 0; i < record.nftIds.length; i++) {
+            nft.transferFrom(address(this), msg.sender, record.nftIds[i]);
+        }
         item.mintItem(record.owner, package.itemStar, package.itemType);
         uint256 newItemId = item.latestItemId();
+        record.claimed = true;
+        stakingRecords[msg.sender].remove(_recordId);
         emit Claim(record.owner, record.packageId, _recordId, newItemId);
     }
 
-    function updatePackage(uint8 _id, uint8 _starRequire, uint256 _stakePeriod, uint8 _itemStar, uint256 _itemType, uint256 _total, bool _available) external onlyOwner {
+    function getStakingRecordIds() external view returns (uint256[] memory) {
+        uint256 length = stakingRecords[msg.sender].length();
+        uint256[] memory recordIds = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            recordIds[i] = stakingRecords[msg.sender].at(i);
+        }
+        return recordIds;
+    }
+
+    function updatePackage(uint8 _id, uint256 _numberHeroRequire, uint8 _starRequire, uint256 _stakePeriod, uint8 _itemStar, uint256 _itemType, uint256 _total, bool _available) external onlyOwner {
         packages[_id] = Package({
+            numberHeroRequire: _numberHeroRequire,
             starRequire: _starRequire,
             stakePeriod: _stakePeriod,
             itemStar: _itemStar,

@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
@@ -21,6 +22,7 @@ interface Item {
 
 contract StakeToken is Ownable {
     using SafeMath for uint256;
+    using EnumerableSet for EnumerableSet.UintSet;
 
     IERC20 public token;
     Item public item;
@@ -41,11 +43,16 @@ contract StakeToken is Ownable {
         uint256 packageId;
         uint256 stakePeriod;
         uint256 startAt;
+        bool claimed;
     }
 
     mapping (uint256 => Record) public records;
 
+    mapping (address => uint256[]) public addressRecords;
+
     uint256 private _lastRecordId;
+
+    mapping (address => EnumerableSet.UintSet) private stakingRecords;
 
     event Staking(address indexed owner, uint256 packageId, uint256 recordId);
 
@@ -67,14 +74,17 @@ contract StakeToken is Ownable {
             owner: msg.sender,
             packageId: _packageId,
             stakePeriod: package.stakePeriod,
-            startAt: block.timestamp
+            startAt: block.timestamp,
+            claimed: false
         });
         package.total.sub(1);
+        stakingRecords[msg.sender].add(nextRecordId);
         emit Staking(msg.sender, _packageId, nextRecordId);
     }
 
     function claim(uint256 _recordId) external {
-        Record memory record = records[_recordId];
+        Record storage record = records[_recordId];
+        require(record.claimed == false, "claimed");
         Package memory package = packages[record.packageId];
         require(package.available, "not available");
         require(msg.sender == record.owner, "not owner");
@@ -82,7 +92,18 @@ contract StakeToken is Ownable {
         token.transfer(record.owner, package.tokenRequire);
         item.mintItem(record.owner, package.itemStar, package.itemType);
         uint256 newItemId = item.latestItemId();
+        record.claimed = true;
+        stakingRecords[msg.sender].remove(_recordId);
         emit Claim(record.owner, record.packageId, _recordId, newItemId);
+    }
+
+    function getStakingRecordIds() external view returns (uint256[] memory) {
+        uint256 length = stakingRecords[msg.sender].length();
+        uint256[] memory recordIds = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            recordIds[i] = stakingRecords[msg.sender].at(i);
+        }
+        return recordIds;
     }
 
     function updatePackage(uint8 _id, uint256 _tokenRequire, uint256 _stakePeriod, uint8 _itemStar, uint256 _itemType, uint256 _total, bool _available) external onlyOwner {
