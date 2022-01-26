@@ -68,7 +68,7 @@ contract StakeToken is Ownable {
 
     function stake(uint256 _packageId) external {
         require(stakingPackages[msg.sender][_packageId] == false, "package staked");
-        Package memory package = packages[_packageId];
+        Package storage package = packages[_packageId];
         require(package.available, "not available");
         require(package.slots > 0, "out of stake slots");
         token.transferFrom(msg.sender, address(this), package.tokenRequire);
@@ -81,7 +81,7 @@ contract StakeToken is Ownable {
             startAt: block.timestamp,
             claimed: false
         });
-        package.slots.sub(1);
+        package.slots = package.slots.sub(1);
         stakingRecords[msg.sender].add(nextRecordId);
         stakingPackages[msg.sender][_packageId] == true;
         emit Staking(msg.sender, _packageId, nextRecordId);

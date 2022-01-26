@@ -88,7 +88,7 @@ contract StakeNFT is Ownable, IHero {
 
     function stake(uint256 _packageId, uint256[] memory _nftIds) external {
         require(stakingPackages[msg.sender][_packageId] == false, "package staked");
-        Package memory package = packages[_packageId];
+        Package storage package = packages[_packageId];
         require(package.available, "not available");
         require(package.slots > 0, "out of stake slots");
         uint256 length = _nftIds.length;
@@ -109,14 +109,14 @@ contract StakeNFT is Ownable, IHero {
             startAt: block.timestamp,
             claimed: false
         });
-        package.slots.sub(1);
+        package.slots = package.slots.sub(1);
         stakingRecords[msg.sender].add(nextRecordId);
         stakingPackages[msg.sender][_packageId] == true;
         emit Staking(msg.sender, _packageId, nextRecordId);
     }
 
     function claim(uint256 _recordId) external {
-        Record memory record = records[_recordId];
+        Record storage record = records[_recordId];
         require(record.claimed == false, "claimed");
         Package memory package = packages[record.packageId];
         require(package.available, "not available");
