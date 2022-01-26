@@ -53,6 +53,7 @@ contract StakeNFT is Ownable, IHero {
         uint256 stakePeriod;
         uint8 itemStar;
         uint256 itemType;
+        uint256 slots;
         uint256 total;
         bool available;
     }
@@ -72,6 +73,8 @@ contract StakeNFT is Ownable, IHero {
 
     uint256 private _lastRecordId;
 
+    mapping (address => mapping(uint256 => bool)) public stakingPackages;
+
     mapping (address => EnumerableSet.UintSet) private stakingRecords;
 
     event Staking(address indexed owner, uint256 packageId, uint256 recordId);
@@ -84,9 +87,10 @@ contract StakeNFT is Ownable, IHero {
     }
 
     function stake(uint256 _packageId, uint256[] memory _nftIds) external {
+        require(stakingPackages[msg.sender][_packageId] == false, "package staked");
         Package memory package = packages[_packageId];
         require(package.available, "not available");
-        require(package.total > 0, "out of stake slots");
+        require(package.slots > 0, "out of stake slots");
         uint256 length = _nftIds.length;
         require(length >= package.numberHeroRequire, "not enough hero");
         for (uint256 i = 0; i < length; i++) {
@@ -105,8 +109,9 @@ contract StakeNFT is Ownable, IHero {
             startAt: block.timestamp,
             claimed: false
         });
-        package.total.sub(1);
+        package.slots.sub(1);
         stakingRecords[msg.sender].add(nextRecordId);
+        stakingPackages[msg.sender][_packageId] == true;
         emit Staking(msg.sender, _packageId, nextRecordId);
     }
 
@@ -124,6 +129,7 @@ contract StakeNFT is Ownable, IHero {
         uint256 newItemId = item.latestItemId();
         record.claimed = true;
         stakingRecords[msg.sender].remove(_recordId);
+        stakingPackages[msg.sender][record.packageId] == false;
         emit Claim(record.owner, record.packageId, _recordId, newItemId);
     }
 
@@ -136,13 +142,14 @@ contract StakeNFT is Ownable, IHero {
         return recordIds;
     }
 
-    function updatePackage(uint8 _id, uint256 _numberHeroRequire, uint8 _starRequire, uint256 _stakePeriod, uint8 _itemStar, uint256 _itemType, uint256 _total, bool _available) external onlyOwner {
+    function updatePackage(uint8 _id, uint256 _numberHeroRequire, uint8 _starRequire, uint256 _stakePeriod, uint8 _itemStar, uint256 _itemType, uint256 _slots, uint256 _total, bool _available) external onlyOwner {
         packages[_id] = Package({
             numberHeroRequire: _numberHeroRequire,
             starRequire: _starRequire,
             stakePeriod: _stakePeriod,
             itemStar: _itemStar,
             itemType: _itemType,
+            slots: _slots,
             total: _total,
             available: _available
         });
