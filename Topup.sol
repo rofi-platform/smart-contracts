@@ -7,7 +7,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 interface IBEP20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+
+    function balanceOf(address account) external view returns (uint256);
 }
 
 contract Bannable {
@@ -80,6 +84,10 @@ contract Topup is Bannable, Ownable {
         records[msg.sender].add(nextReceiptId);
 
         emit TopupSuccess(msg.sender, _amount, nextReceiptId);
+    }
+
+    function withdraw(address _receiver) public onlyOwner {
+        token.transfer(_receiver, token.balanceOf(address(this)));
     }
 
     function getReceipt(uint256 _receiptId) public view returns (Receipt memory) {

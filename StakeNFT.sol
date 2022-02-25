@@ -111,7 +111,7 @@ contract StakeNFT is Ownable, IHero {
         });
         package.slots = package.slots.sub(1);
         stakingRecords[msg.sender].add(nextRecordId);
-        stakingPackages[msg.sender][_packageId] == true;
+        stakingPackages[msg.sender][_packageId] = true;
         emit Staking(msg.sender, _packageId, nextRecordId);
     }
 
@@ -129,7 +129,7 @@ contract StakeNFT is Ownable, IHero {
         uint256 newItemId = item.latestItemId();
         record.claimed = true;
         stakingRecords[msg.sender].remove(_recordId);
-        stakingPackages[msg.sender][record.packageId] == false;
+        stakingPackages[msg.sender][record.packageId] = false;
         emit Claim(record.owner, record.packageId, _recordId, newItemId);
     }
 
