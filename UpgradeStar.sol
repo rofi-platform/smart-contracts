@@ -28,7 +28,7 @@ interface INFT is IERC721, IHero {
 	function getHero(uint256 _tokenId) external view returns (Hero memory);
 }
 
-interface IROFI {
+interface IBEP20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
@@ -36,24 +36,32 @@ contract UpgradeStar is IHero, Ownable {
     CNFT public cnft;
     
     INFT public nft;
-    
-    IROFI public rofi;
-    
-    address public payRofiUnlocked;
                 
     mapping (uint8 => uint256) upgradeStarFee;
 
-    mapping (uint8 => uint8) requirements;
+    struct Requirement {
+        address token1;
+        uint256 token1Require;
+        address token2;
+        uint256 token2Require;
+        uint8 numberHeroRequire;
+        uint8 successPercent;
+    }
+
+    mapping (uint8 => Requirement) requirements;
     
-    event StarUpgrade(uint256 heroId, uint8 newStar);
+    event StarUpgrade(uint256 heroId, uint8 newStar, bool isSuccess);
         
     address public deadAddress = 0x81F403fE697CfcF2c21C019bD546C6b36370458c;
+
+    address public feeAddress = 0x81F403fE697CfcF2c21C019bD546C6b36370458c;
+
+    uint nonce = 0;
     
-    constructor(address _nft, address _cnft, address _rofi, address _payRofiUnlocked) {
+    constructor(address _nft, address _cnft, address _feeAddress) {
         nft = INFT(_nft);
         cnft = CNFT(_cnft);
-        rofi = IROFI(_rofi);
-        payRofiUnlocked = _payRofiUnlocked;
+        feeAddress = _feeAddress;
     }
 
     function upgradeStar(uint256[] memory _heroIds) external {
@@ -78,16 +86,35 @@ contract UpgradeStar is IHero, Ownable {
         }
         require(isOwner, "require: must be owner");
         require(sameStar, "require: must same star");
-        uint8 requirement = requirements[currentStar];
-        require(length == requirement, "require: number of heroes not correct");
-        uint256 fee = upgradeStarFee[currentStar];
-        rofi.transferFrom(_msgSender(), payRofiUnlocked, fee);
-        uint8 newStar = currentStar + 1;
-        cnft.upgrade(_heroIds[0], newStar);
-        for (uint256 k = 1; k < length; k++) {
-            nft.transferFrom(_msgSender(), deadAddress, _heroIds[k]);
+        Requirement memory requirement = requirements[currentStar];
+        require(length == requirement.numberHeroRequire, "require: number of heroes not correct");
+        IBEP20(requirement.token1).transferFrom(_msgSender(), feeAddress, requirement.token1Require);
+        IBEP20(requirement.token2).transferFrom(_msgSender(), feeAddress, requirement.token2Require);
+        bool isSuccess = randomUpgrade(requirement.successPercent);
+        if (isSuccess) {
+            uint8 newStar = currentStar + 1;
+            cnft.upgrade(_heroIds[0], newStar);
+            for (uint256 k = 1; k < length; k++) {
+                nft.transferFrom(_msgSender(), deadAddress, _heroIds[k]);
+            }
+            emit StarUpgrade(_heroIds[0], newStar, true);
+        } else {
+            emit StarUpgrade(_heroIds[0], currentStar, false);
         }
-        emit StarUpgrade(_heroIds[0], newStar);
+    }
+
+    function randomUpgrade(uint8 _successPercent) internal returns (bool) {
+        uint random = getRandomNumber();
+        uint seed = random % 100;
+        if (seed < _successPercent) {
+            return true;
+        }
+        return false;
+    }
+    
+    function getRandomNumber() internal returns (uint) {
+        nonce += 1;
+        return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
     }
     
     function updateNft(address _newAddress) external onlyOwner {
@@ -97,38 +124,23 @@ contract UpgradeStar is IHero, Ownable {
     function updateCnft(address _newAddress) external onlyOwner {
         cnft = CNFT(_newAddress);
     }
-    
-    function updatePayRofiUnlocked(address _newAddress) external onlyOwner {
-        payRofiUnlocked = _newAddress;
-    }
-    
-    function updateRofi(address _newAddress) external onlyOwner {
-        rofi = IROFI(_newAddress);
-    }
-    
-    function updateFee(uint8[] memory _stars, uint256[] memory _fees) external onlyOwner {
-        uint256 length = _stars.length;
-        require(length == _fees.length, "params not correct");
-        for (uint256 i = 0; i < length; i++) {
-            uint8 _star = uint8(_stars[i]);
-            upgradeStarFee[_star] = uint256(_fees[i]*10**18);
-        }
-    }
-    
-    function getFee(uint8 _currentStar) public view returns (uint256) {
-        return upgradeStarFee[_currentStar];
+
+    function updateFeeAddress(address _newAddress) external onlyOwner {
+        feeAddress = _newAddress;
     }
 
-    function updateRequirements(uint8[] memory _stars, uint8[] memory _requirements) external onlyOwner {
-        uint256 length = _stars.length;
-        require(length == _requirements.length, "params not correct");
-        for (uint256 i = 0; i < length; i++) {
-            uint8 _star = uint8(_stars[i]);
-            requirements[_star] = uint8(_requirements[i]);
-        }
-    }
-
-    function getRequirement(uint8 _currentStar) public view returns (uint8) {
+    function getRequirement(uint8 _currentStar) public view returns (Requirement memory) {
         return requirements[_currentStar];
+    }
+
+    function setRequirement(uint8 _star, address _token1, uint256 _token1Require, address _token2, uint256 _token2Require, uint8 _numberHeroRequire, uint8 _successPercent) public onlyOwner {
+        requirements[_star] = Requirement({
+            token1: _token1,
+            token1Require: _token1Require,
+            token2: _token2,
+            token2Require: _token2Require,
+            numberHeroRequire: _numberHeroRequire,
+            successPercent: _successPercent
+        });
     }
 }
