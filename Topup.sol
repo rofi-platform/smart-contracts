@@ -63,14 +63,17 @@ contract Topup is Bannable, Ownable {
 
     mapping (address => EnumerableSet.UintSet) private records;
 
+    address public receiver;
+
     event TopupSuccess(address indexed user, uint256 amount, uint256 receiptId);
 
-    constructor(address _token) {
+    constructor(address _token, address _receiver) {
         token = IBEP20(_token);
+        receiver = _receiver;
     }
 
     function topup(uint256 _amount) public {
-        token.transferFrom(msg.sender, address(this), _amount);
+        token.transferFrom(msg.sender, receiver, _amount);
 
         uint256 nextReceiptId = getNextReceiptId();
 		incrementReceiptId();
@@ -84,10 +87,6 @@ contract Topup is Bannable, Ownable {
         records[msg.sender].add(nextReceiptId);
 
         emit TopupSuccess(msg.sender, _amount, nextReceiptId);
-    }
-
-    function withdraw(address _receiver) public onlyOwner {
-        token.transfer(_receiver, token.balanceOf(address(this)));
     }
 
     function getReceipt(uint256 _receiptId) public view returns (Receipt memory) {
@@ -113,6 +112,10 @@ contract Topup is Bannable, Ownable {
 
     function updateToken(address _token) public onlyOwner {
         token = IBEP20(_token);
+    }
+
+    function updateReceiver(address _receiver) public onlyOwner {
+        receiver = _receiver;
     }
 
     function getNextReceiptId() private view returns (uint256) {

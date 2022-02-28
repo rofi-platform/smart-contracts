@@ -203,8 +203,14 @@ contract HeroFarm is Ownable, IHero {
             endBlock: _endBlock,
             lastRewardBlock: _lastRewardBlock,
             accRewardPerShare: _accRewardPerShare,
-            available: true
+            available: false
         });
+    }
+
+    function openPool(uint256 _poolId, uint256 _totalReward) external onlyOwner {
+        Pool storage pool = pools[_poolId];
+        pool.endBlock = block.number.add(_totalReward.div(pool.rewardPerBlock)).add(1);
+        pool.available = true;
     }
 
     function closePool(uint256 _poolId) public onlyOwner {

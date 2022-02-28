@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 interface IHero {
 	struct Hero {
@@ -52,11 +53,15 @@ contract UpgradeStar is IHero, Ownable {
     
     event StarUpgrade(uint256 heroId, uint8 newStar, bool isSuccess);
         
-    address public deadAddress = 0x81F403fE697CfcF2c21C019bD546C6b36370458c;
+    address public deadAddress = 0x000000000000000000000000000000000000dEaD;
 
     address public feeAddress = 0x81F403fE697CfcF2c21C019bD546C6b36370458c;
 
     uint nonce = 0;
+
+    bytes32 public merkleRoot;
+
+    event MerkleRootUpdated(bytes32 merkleRoot);
     
     constructor(address _nft, address _cnft, address _feeAddress) {
         nft = INFT(_nft);
@@ -64,9 +69,11 @@ contract UpgradeStar is IHero, Ownable {
         feeAddress = _feeAddress;
     }
 
-    function upgradeStar(uint256[] memory _heroIds) external {
+    function upgradeStar(uint256[] memory _heroIds, uint8 _level, bytes32[] memory _proof) external {
         uint256 length = _heroIds.length;
         require(length > 1, "require: at least 2 heroes");
+        require(_level == 30, "level must be 30");
+        require(MerkleProof.verify(_proof, merkleRoot, bytes32(keccak256(abi.encodePacked(_heroIds[0], _level)))), "data is outdated or invalid");
         uint8[] memory stars = new uint8[](length);
         bool sameStar = true;
         bool isOwner = true;
@@ -101,6 +108,16 @@ contract UpgradeStar is IHero, Ownable {
         } else {
             emit StarUpgrade(_heroIds[0], currentStar, false);
         }
+    }
+
+    function updateMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        merkleRoot = _merkleRoot;
+        emit MerkleRootUpdated(merkleRoot);
+    }
+    
+    function verifyMerkleProof(uint256 _heroId, uint8 _level, bytes32[] memory _proof) public view returns (bool valid) {
+        bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
+        return MerkleProof.verify(_proof, merkleRoot, leaf);
     }
 
     function randomUpgrade(uint8 _successPercent) internal returns (bool) {
