@@ -7,18 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-interface INFT {
-    struct Hero {
-        uint8 star;
-        uint8 heroType;
-        bytes32 dna;
-        bool isGenesis;
-        uint256 bornAt;
-    }
-    function getHero(uint256 _tokenId) external view returns (Hero memory);
-}
-
-contract LegendGuardianMarket is Ownable {
+contract HeroMarket is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -43,39 +32,33 @@ contract LegendGuardianMarket is Ownable {
 
     uint256 public currentOrderId;
     uint256 public feeMarketRate = 4; // unit %.
-    IERC20 public immutable currency;
+    IERC20 public immutable busdBEP20;
 
-    mapping(address => bool) public _listedNfts;
     mapping(address => EnumerableSet.UintSet) private tokenSales;
     mapping(address => mapping(uint256 => ItemSale)) internal markets;
-    mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
+    mapping(address => mapping(address =>EnumerableSet.UintSet)) private sellerTokens;
 
 
-    constructor(address _currencyERC20){
-        currency = IERC20(_currencyERC20);
-    }
-
-    modifier onlyListedNft(address _nftAddress) {
-        require(_listedNfts[_nftAddress], "ERROR: NFT not accepted in Market");
-        _;
+    constructor(address _eggERC20){
+        busdBEP20 = IERC20(_eggERC20);
     }
 
     function setFeeMarketRate(uint256 _feeMarketRate) public onlyOwner {
-        require(_feeMarketRate < 10, "Too high");
+        require(_feeMarketRate < 100, "Too high");
         feeMarketRate = _feeMarketRate;
     }
-
-    function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
-        require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
-        require((INFT(_nftAddress).getHero(_tokenId)).star >= 3, "NFT star must be greater or equal 3");
-        require(_price > 0, "Nothing is free");
+    function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public {
+        require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "not own");
+        require(_price > 0, "nothing is free");
+        // TODO Need check this
+        // require(isEvolved[_tokenId], "require: evolved");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);
 
         emit PlaceOrder(currentOrderId, _nftAddress, _tokenId, _msgSender(), _price);
     }
 
-    function cancelOrder(address _nftAddress, uint256 _tokenId) public onlyListedNft(_nftAddress) {
+    function cancelOrder(address _nftAddress, uint256 _tokenId) public {
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         require(itemSale.owner == _msgSender(), "not own");
@@ -86,7 +69,7 @@ contract LegendGuardianMarket is Ownable {
         emit CancelOrder(_orderId, _nftAddress, _tokenId, _msgSender());
     }
 
-    function updatePrice(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
+    function updatePrice(address _nftAddress, uint256 _tokenId, uint256 _price) public {
         require(_price > 0, "nothing is free");
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
@@ -97,15 +80,14 @@ contract LegendGuardianMarket is Ownable {
         emit UpdatePrice(itemSale.orderId, _nftAddress, _tokenId, _msgSender(), _price);
     }
 
-    function fillOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
+    function fillOrder(address _nftAddress, uint256 _tokenId) public {
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
-        require(itemSale.price == _price, "Price not match!");
         uint256 feeMarket = itemSale.price.mul(feeMarketRate).div(100);
         if (feeMarket > 0) {
-            currency.transferFrom(_msgSender(), owner(), feeMarket);
+            busdBEP20.transferFrom(_msgSender(), owner(), feeMarket);
         }
-        currency.transferFrom(
+        busdBEP20.transferFrom(
             _msgSender(),
             itemSale.owner,
             itemSale.price.sub(feeMarket)
@@ -129,22 +111,22 @@ contract LegendGuardianMarket is Ownable {
 
             currentOrderId++;
             markets[_nftAddress][_tokenId] = ItemSale({
-            orderId : currentOrderId,
-            nftAddress : _nftAddress,
-            tokenId : _tokenId,
-            price : _price,
-            owner : _msgSender()
+            orderId: currentOrderId,
+            nftAddress: _nftAddress,
+            tokenId: _tokenId,
+            price: _price,
+            owner: _msgSender()
             });
         } else {
             IERC721(_nftAddress).transferFrom(address(this), _msgSender(), _tokenId);
             tokenSales[_nftAddress].remove(_tokenId);
             sellerTokens[_nftAddress][itemSale.owner].remove(_tokenId);
             markets[_nftAddress][_tokenId] = ItemSale({
-            orderId : 0,
-            nftAddress : address(0),
-            tokenId : 0,
-            price : 0,
-            owner : address(0)
+            orderId: 0,
+            nftAddress: address(0),
+            tokenId: 0,
+            price: 0,
+            owner: address(0)
             });
         }
     }
@@ -157,24 +139,16 @@ contract LegendGuardianMarket is Ownable {
         return tokenSales[_nftAddress].at(index);
     }
 
-    function tokensSaleOfOwner(address _nftAddress, address _seller)
+    function tokenSaleOfOwnerByIndex(address _nftAddress, address _seller, uint256 index)
     public
     view
-    returns (uint256[] memory)
+    returns (uint256)
     {
-        return sellerTokens[_nftAddress][_seller].values();
+        return sellerTokens[_nftAddress][_seller].at(index);
     }
 
     function getSale(address _nftAddress, uint256 _tokenId) public view returns (ItemSale memory) {
         if (tokenSales[_nftAddress].contains(_tokenId)) return markets[_nftAddress][_tokenId];
-        return ItemSale({orderId : 0, nftAddress : address(0), tokenId : 0, owner : address(0), price : 0});
-    }
-
-    function listNft(address _nftAddress) external onlyOwner {
-        _listedNfts[_nftAddress] = true;
-    }
-
-    function delistNft(address _nftAddress) external onlyOwner {
-        _listedNfts[_nftAddress] = false;
+        return ItemSale({orderId: 0, nftAddress: address(0), tokenId: 0, owner: address(0), price: 0});
     }
 }
