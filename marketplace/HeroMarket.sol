@@ -18,7 +18,7 @@ interface INFT {
     function getHero(uint256 _tokenId) external view returns (Hero memory);
 }
 
-contract LegendGuardianMarket is Ownable {
+contract HeroMarket is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -50,6 +50,8 @@ contract LegendGuardianMarket is Ownable {
     mapping(address => mapping(uint256 => ItemSale)) internal markets;
     mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
 
+    uint8 public minStar = 3;
+
 
     constructor(address _currencyERC20){
         currency = IERC20(_currencyERC20);
@@ -65,9 +67,14 @@ contract LegendGuardianMarket is Ownable {
         feeMarketRate = _feeMarketRate;
     }
 
+    function setMinStar(uint8 _minStar) public onlyOwner {
+        require(_minStar <= 6, "Star from 1 to 6");
+        minStar = _minStar;
+    }
+
     function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
-        require((INFT(_nftAddress).getHero(_tokenId)).star >= 3, "NFT star must be greater or equal 3");
+        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "NFT star must be greater or equal 3");
         require(_price > 0, "Nothing is free");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);
