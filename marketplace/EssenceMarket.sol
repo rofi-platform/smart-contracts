@@ -7,6 +7,17 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
+interface INFT {
+    struct Hero {
+        uint8 star;
+        uint8 heroType;
+        bytes32 dna;
+        bool isGenesis;
+        uint256 bornAt;
+    }
+    function getHero(uint256 _tokenId) external view returns (Hero memory);
+}
+
 contract EssenceMarket is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -39,9 +50,11 @@ contract EssenceMarket is Ownable {
     mapping(address => mapping(uint256 => ItemSale)) internal markets;
     mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
 
+    uint8 public minStar = 3;
 
-    constructor(address _currencyERC20){
+    constructor(address _currencyERC20, address _nftListed){
         currency = IERC20(_currencyERC20);
+        _listedNfts[_nftListed] = true;
     }
 
     modifier onlyListedNft(address _nftAddress) {
@@ -50,13 +63,19 @@ contract EssenceMarket is Ownable {
     }
 
     function setFeeMarketRate(uint256 _feeMarketRate) public onlyOwner {
-        require(_feeMarketRate < 100, "Too high");
+        require(_feeMarketRate < 10, "Too high");
         feeMarketRate = _feeMarketRate;
     }
 
+    function setMinStar(uint8 _minStar) public onlyOwner {
+        require(_minStar <= 6, "Star from 1 to 6");
+        minStar = _minStar;
+    }
+
     function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
-        require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "not own");
-        require(_price > 0, "nothing is free");
+        require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
+        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "NFT star must be greater or equal 3");
+        require(_price > 0, "Nothing is free");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);
 
