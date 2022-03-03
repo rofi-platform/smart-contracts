@@ -8,14 +8,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 interface INFT {
-    struct Hero {
+    struct Ticket {
         uint8 star;
-        uint8 heroType;
-        bytes32 dna;
-        bool isGenesis;
-        uint256 bornAt;
     }
-    function getHero(uint256 _tokenId) external view returns (Hero memory);
+
+    function getTicket(uint256 _ticketId) external view returns (Ticket memory);
 }
 
 contract EssenceMarket is Ownable {
@@ -74,7 +71,7 @@ contract EssenceMarket is Ownable {
 
     function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
-        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "Invalid NFT star");
+        require((INFT(_nftAddress).getTicket(_tokenId)).star >= minStar, "Invalid NFT star");
         require(_price > 0, "Nothing is free");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);
