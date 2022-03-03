@@ -50,7 +50,7 @@ contract EssenceMarket is Ownable {
     mapping(address => mapping(uint256 => ItemSale)) internal markets;
     mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
 
-    uint8 public minStar = 3;
+    uint8 public minStar = 2;
 
     constructor(address _currencyERC20, address _nftListed){
         currency = IERC20(_currencyERC20);
@@ -74,7 +74,7 @@ contract EssenceMarket is Ownable {
 
     function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
-        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "NFT star must be greater or equal 3");
+        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "Invalid NFT star");
         require(_price > 0, "Nothing is free");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);

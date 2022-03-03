@@ -74,7 +74,7 @@ contract LegendGuardianMarket is Ownable {
 
     function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
-        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "NFT star must be greater or equal 3");
+        require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "Invalid NFT star");
         require(_price > 0, "Nothing is free");
 
         tokenOrder(_nftAddress, _tokenId, true, _price);
