@@ -52,9 +52,9 @@ contract HeroMarket is Ownable {
 
     uint8 public minStar = 3;
 
-
-    constructor(address _currencyERC20){
+    constructor(address _currencyERC20, address _nftListed){
         currency = IERC20(_currencyERC20);
+        _listedNfts[_nftListed] = true;
     }
 
     modifier onlyListedNft(address _nftAddress) {
