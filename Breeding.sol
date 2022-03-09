@@ -38,12 +38,26 @@ interface ICNFT {
     function spawn(address to_, uint8 star_) external;
 }
 
+interface IBEP20 {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+}
+
 contract Breeding is IHero, Ownable {
     using SafeMath for uint256;
 
-    INFT private nft;
+    INFT public nft;
     
-    ICNFT private cnft;
+    ICNFT public cnft;
+
+	IBEP20 public token1;
+
+	IBEP20 public token2;
+
+	uint256 public token1Require;
+
+	uint256 public token2Require;
+
+	address public feeAddress;
 
 	struct Breed {
 		address owner;
@@ -70,9 +84,15 @@ contract Breeding is IHero, Ownable {
         _;
     }
     
-    constructor(address _nft, address _cnft) {
+    constructor(address _nft, address _cnft, address _token1, uint256 _token1Require, address _token2, uint256 _token2Require, address _feeAddress, uint256 lastBreedId_) {
         nft = INFT(_nft);
         cnft = ICNFT(_cnft);
+		token1 = IBEP20(_token1);
+		token2 = IBEP20(_token2);
+		token1Require = _token1Require;
+		token2Require = _token2Require;
+		feeAddress = _feeAddress;
+		_lastBreedId = lastBreedId_;
     }
     
     function startBreed(uint256 _tokenId1, uint256 _tokenId2) external {
@@ -82,9 +102,15 @@ contract Breeding is IHero, Ownable {
         Hero memory hero1 = nft.getHero(_tokenId1);
 		Hero memory hero2 = nft.getHero(_tokenId2);
 
+		require(hero1.isGenesis, "only genesis hero");
+		require(hero2.isGenesis, "only genesis hero");
+
 		uint8 hero1Sex = genders[hero1.heroType];
 		uint8 hero2Sex = genders[hero2.heroType];
 		require(hero1Sex + hero2Sex == 1, "need one male & one female");
+
+		token1.transferFrom(_msgSender(), feeAddress, token1Require);
+		token2.transferFrom(_msgSender(), feeAddress, token2Require);
 
 		nft.transferFrom(_msgSender(), address(this), _tokenId1);
 		nft.transferFrom(_msgSender(), address(this), _tokenId2);
@@ -167,4 +193,24 @@ contract Breeding is IHero, Ownable {
     function latestBreedId() external view returns(uint) {
         return _lastBreedId;
     }
+
+	function updateFeeAddress(address _newAddress) public onlyOwner {
+		feeAddress = _newAddress;
+	}
+
+	function updateToken1(address _newAddress) public onlyOwner {
+		token1 = IBEP20(_newAddress);
+	}
+
+	function updateToken2(address _newAddress) public onlyOwner {
+		token2 = IBEP20(_newAddress);
+	}
+
+	function updateToken1Require(uint256 _amount) public onlyOwner {
+		token1Require = _amount;
+	}
+
+	function updateToken2Require(uint256 _amount) public onlyOwner {
+		token2Require = _amount;
+	}
 }
