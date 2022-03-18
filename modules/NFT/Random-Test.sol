@@ -16,7 +16,7 @@ contract Random is Ownable {
     }
     
     constructor() {
-        _randomRequester = IRandomRequester(msg.sender);
+        _randomRequester = IRandomRequester(0x8d44E7d8c7a583e301A94BF53E183Fbe266bF374);
     }
     
     function requestRandomNumber(uint256 _tokenId) external {

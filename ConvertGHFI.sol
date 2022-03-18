@@ -57,6 +57,11 @@ contract ConvertGHFI is Ownable {
 
         emit MerkleRootUpdated(_timestamp, _root);
     }
+
+    function verifyMerkleProof(uint256 _timestamp, address _user, uint256 _requestId, uint256 _total, uint256 _claimableAt, bytes32[] memory _proof) public view returns (bool valid) {
+        bytes32 leaf = keccak256(abi.encodePacked(_user, _requestId, _total, _claimableAt));
+        return MerkleProof.verify(_proof, roots[_timestamp], leaf);
+    }
     
     function getRoot(uint256 _timestamp) public view returns (bytes32) {
         return roots[_timestamp];

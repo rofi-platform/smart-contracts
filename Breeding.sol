@@ -213,4 +213,8 @@ contract Breeding is IHero, Ownable {
 	function updateToken2Require(uint256 _amount) public onlyOwner {
 		token2Require = _amount;
 	}
+
+	function updateLastBreedId(uint256 lastBreedId_) public onlyOwner {
+		_lastBreedId = lastBreedId_;
+	}
 }
