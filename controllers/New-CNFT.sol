@@ -84,8 +84,8 @@ contract CNFT is Ownable {
     }
 
     function spawn(address to_, uint8 star_) external payable onlyPaidFee onlySpawner {
-        // bool _isGenesis = false;
-        // nftContract.spawn(to_, _isGenesis, star_);
+        bool _isGenesis = false;
+        nftContract.spawn(to_, _isGenesis, star_);
     }
 
     function getStarFromRandomness(uint256 _randomness) external pure returns(uint8) {
