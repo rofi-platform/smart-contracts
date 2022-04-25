@@ -1,0 +1,98 @@
+{
+	"compiler": {
+		"version": "0.8.13+commit.abaa5c0e"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_randomness",
+						"type": "uint256"
+					}
+				],
+				"name": "getStarFromRandomness",
+				"outputs": [
+					{
+						"internalType": "uint8",
+						"name": "",
+						"type": "uint8"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTotalHeroTypes",
+				"outputs": [
+					{
+						"internalType": "uint8",
+						"name": "",
+						"type": "uint8"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "bnbFee_",
+						"type": "uint256"
+					}
+				],
+				"name": "setBnbFee",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "spawn",
+				"outputs": [],
+				"stateMutability": "payable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"interfaces/controllers/ICNFT.sol": "ICNFT"
+		},
+		"evmVersion": "london",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"interfaces/controllers/ICNFT.sol": {
+			"keccak256": "0x613ba645f2f4020a1fcc043baf4155332d2881432e38396f03761b6d970c14a8",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://87ed853ef98b70a27c00b99ef50e35cade22fbd8740ac0eec99fa0c6d519519e",
+				"dweb:/ipfs/QmdrCfMreQD7TKyyZMPF3CkQ4H2NAS7A6sPFZeGhZmou5A"
+			]
+		}
+	},
+	"version": 1
+}
