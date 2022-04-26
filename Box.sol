@@ -41,6 +41,7 @@ contract Box is Ownable {
         uint256 price;
         uint8 star;
         uint8[] percents;
+        uint256 totalSupply;
         address paymentToken;
         bool isAvailable;
         bool useChainlink;
@@ -62,6 +63,8 @@ contract Box is Ownable {
 
     mapping (uint256 => address) requestUser;
 
+    mapping (uint8 => uint256) records;
+
     modifier onlyRandom {
         require(msg.sender == address(random), "require Random");
         _;
@@ -79,7 +82,10 @@ contract Box is Ownable {
         require(_amount >= 1, "require: at least 1");
         BoxType memory box = boxes[_id];
         require(box.isAvailable == true, "require: not available");
+        uint256 boxOpenedAmount = records[_id];
+        require(_amount <= box.totalSupply.sub(boxOpenedAmount), "required: out of stock");
         IERC20(box.paymentToken).transferFrom(_msgSender(), receiver, box.price.mul(_amount));
+        records[_id] = boxOpenedAmount.add(_amount);
         if (box.useChainlink) {
             requestRandomNumber(_msgSender(), _id, _amount, block.timestamp);
         } else {
@@ -145,7 +151,7 @@ contract Box is Ownable {
         _openBox(user, boxId, _randomness, amount, true, timestamp);
     }
 
-    function updateBox(uint8 _id, uint256 _price, uint8 _star, uint8[] memory _percents, address _paymentToken, bool _useChainlink) external onlyOwner {
+    function updateBox(uint8 _id, uint256 _price, uint8 _star, uint8[] memory _percents, uint256 _totalSupply, address _paymentToken, bool _useChainlink) external onlyOwner {
         uint256 length = _percents.length;
         require(length == 5, "require: need 5");
         require(_price > 0, "require: box price must > 0");
@@ -154,6 +160,7 @@ contract Box is Ownable {
             price: _price,
             star: _star,
             percents: _percents,
+            totalSupply: _totalSupply,
             paymentToken: _paymentToken,
             useChainlink: _useChainlink,
             isAvailable: true
@@ -167,6 +174,20 @@ contract Box is Ownable {
 
     function getBox(uint8 _id) public view returns (BoxType memory) {
         return boxes[_id];
+    }
+
+    function getBoxOpenedAmount(uint8 _id) public view returns (uint256) {
+        return records[_id];
+    }
+
+    function getTotalBoxCanOpen(uint8 _id) public view returns (uint256) {
+        BoxType memory box = boxes[_id];
+        return box.totalSupply;
+    }
+
+    function getRemainingBoxAmount(uint8 _id) public view returns (uint256) {
+        BoxType memory box = boxes[_id];
+        return box.totalSupply.sub(records[_id]);
     }
 
     function getNextRequestId() private view returns (uint256) {
@@ -187,6 +208,10 @@ contract Box is Ownable {
 
     function updateReceiver(address _receiver) external onlyOwner {
         receiver = _receiver;
+    }
+
+    function updateCnft(address _cnft) external onlyOwner {
+        cnft = ICNFT(_cnft);
     }
 
     function setBnbFee(uint256 _bnbFee) external onlyOwner {
