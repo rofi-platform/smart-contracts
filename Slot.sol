@@ -65,6 +65,10 @@ contract Slot is Ownable {
         emit BuySlot(msg.sender, nextRecordId);
     }
 
+    function getAvailableSlot() public view returns (uint256) {
+        return availableSlot;
+    }
+
     function getRecord(uint256 _recordId) public view returns (Record memory) {
         return records[_recordId];
     }
