@@ -22,7 +22,7 @@ contract Slot is Ownable {
 
     mapping (uint256 => Record) public records;
 
-    mapping (address => uint256) public totalSlotNumber;
+    mapping (address => uint256) public slotByUser;
 
     mapping (address => EnumerableSet.UintSet) private slots;
 
@@ -30,21 +30,29 @@ contract Slot is Ownable {
 
     uint256 public perSlot;
 
+    uint256 public totalSlot;
+
+    uint256 public availableSlot;
+
     address public receiver;
 
     event BuySlot(address indexed user, uint256 recordId);
 
-    constructor(address _token, uint256 _perSlot, address _receiver) {
+    constructor(address _token, uint256 _totalSlot, uint256 _perSlot, address _receiver) {
         token = IERC20(_token);
+        totalSlot = _totalSlot;
+        availableSlot = _totalSlot;
         perSlot = _perSlot;
         receiver = _receiver;
     }
 
     function buySlot(uint256 _numberSlot) external {
+        require(availableSlot > 0, "out of slot");
         uint256 total = _numberSlot.mul(perSlot);
         token.transferFrom(msg.sender, receiver, total);
-        uint256 currentSlotNumber = totalSlotNumber[msg.sender];
-        totalSlotNumber[msg.sender] = currentSlotNumber.add(_numberSlot);
+        availableSlot = availableSlot.sub(1);
+        uint256 currentSlotNumber = slotByUser[msg.sender];
+        slotByUser[msg.sender] = currentSlotNumber.add(_numberSlot);
         uint256 nextRecordId = _getNextRecordId();
 		_incrementRecordId();
         records[nextRecordId] = Record({
@@ -70,8 +78,8 @@ contract Slot is Ownable {
         return recordIds;
     }
 
-    function getTotalSlotNumber(address _user) public view returns (uint256) {
-        return totalSlotNumber[_user];
+    function getSlotByUser(address _user) public view returns (uint256) {
+        return slotByUser[_user];
     }
 
     function updateToken(address _token) external onlyOwner {
