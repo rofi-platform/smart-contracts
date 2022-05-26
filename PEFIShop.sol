@@ -10,7 +10,7 @@ interface IPEFI {
     function lockedOf(address account) external view returns (uint256);
 }
 
-contract HeroFiShop is Ownable, Pausable {
+contract PEFIShop is Ownable, Pausable {
     address public receiverToken;
     IPEFI public immutable pefi;
 
