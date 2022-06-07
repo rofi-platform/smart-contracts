@@ -44,6 +44,12 @@ contract PEFIShop is Ownable, Pausable {
         });
     }
 
+    function updatePack(uint256 _packId, uint256 _price, string memory _description) public onlyOwner {
+        Pack storage pack = packs[_packId];
+        pack.price = _price;
+        pack.description = _description;
+    }
+
     function disablePack(uint256 _packId) public onlyOwner {
         Pack storage pack = packs[_packId];
         pack.isEnable = false;
