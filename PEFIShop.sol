@@ -24,7 +24,7 @@ contract PEFIShop is Ownable, Pausable {
 
     uint256 public currentPackId;
 
-    event BuyPack(uint256 indexed packId, address indexed buyer, uint256 buyAt);
+    event BuyPack(uint256 indexed packId, address indexed buyer, uint256 buyAt, uint256 gemAmount);
 
     event DisablePack(uint256 indexed packId);
     event EnablePack(uint256 indexed packId);
@@ -66,11 +66,11 @@ contract PEFIShop is Ownable, Pausable {
         receiverToken = _receiverToken;
     }
 
-    function buyPack(uint256 _packId) public whenNotPaused {
+    function buyPack(uint256 _packId, uint256 _gemAmount) public whenNotPaused {
         Pack storage pack = packs[_packId];
         require(pack.isEnable, "This pack is disabled!");
         pefi.transferFrom(_msgSender(), receiverToken, pack.price);
-        emit BuyPack(_packId, _msgSender(), block.timestamp);
+        emit BuyPack(_packId, _msgSender(), block.timestamp, _gemAmount);
     }
 
     /**
