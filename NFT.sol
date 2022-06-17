@@ -95,7 +95,7 @@ contract NFT is BannableERC721, Ownable, UseController {
     struct Hero {
         uint8 star;
         uint8 rarity;
-        uint8 class;
+        uint8 plantClass;
         uint256 plantId;
         uint256 bornAt;
     }
@@ -106,11 +106,11 @@ contract NFT is BannableERC721, Ownable, UseController {
 
     uint8 public totalClass;
     
-    mapping(uint256 => Hero) internal heros;
+    mapping (uint256 => Hero) internal heros;
 
-    mapping (uint8 => uint256[]) public planIds;
+    mapping (uint8 => mapping (uint8 => uint256[])) public planIds;
     
-    event InitHero(uint256 indexed tokenId, address to, uint8 star, uint8 rarity, uint8 class, uint256 plantId);
+    event InitHero(uint256 indexed tokenId, address to, uint8 star, uint8 rarity, uint8 plantClass, uint256 plantId);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
         
     constructor(
@@ -154,31 +154,31 @@ contract NFT is BannableERC721, Ownable, UseController {
         emit ChangeStar(_tokenId, _star);
     }
 
-    function mint(address _to, uint8 _star, uint8 _rarity, uint8 _class, uint256 _plantId) public onlyController {
+    function mint(address _to, uint8 _star, uint8 _rarity, uint8 _plantClass, uint256 _plantId) public onlyController {
         uint256 nextTokenId = _getNextTokenId();
         _mint(_to, nextTokenId);
         
         heros[nextTokenId] = Hero({
             star: _star,
             rarity: _rarity,
-            class: _class,
+            plantClass: _plantClass,
             plantId: _plantId,
             bornAt: block.timestamp
         });
 
-        emit InitHero(nextTokenId, _to, _star, _rarity, _class, _plantId);
+        emit InitHero(nextTokenId, _to, _star, _rarity, _plantClass, _plantId);
     }
     
     function getHero(uint256 _tokenId) public view returns (Hero memory) {
         return heros[_tokenId];
     }
 
-    function getPlanIds(uint8 _class) public view returns (uint256[] memory) {
-        return planIds[_class];
+    function getPlanIds(uint8 _plantClass, uint8 _rarity) public view returns (uint256[] memory) {
+        return planIds[_rarity][_plantClass];
     }
 
-    function updatePlanIds(uint8 _class, uint256[] memory _plantIds) public onlyController {
-        planIds[_class] = _plantIds;
+    function updatePlanIds(uint8 _plantClass, uint8 _rarity, uint256[] memory _plantIds) public onlyController {
+        planIds[_rarity][_plantClass] = _plantIds;
     }
 
     function getTotalClass() public view returns (uint8) {

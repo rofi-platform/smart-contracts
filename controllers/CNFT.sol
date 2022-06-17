@@ -50,8 +50,8 @@ contract CNFT is Ownable {
         nftContract.upgrade(_tokenId, _star);
     }
 
-    function mint(address _to, uint8 _star, uint8 _rarity, uint8 _class, uint256 _plantId) external onlySpawner {
-        nftContract.mint(_to, _star, _rarity, _class, _plantId);
+    function mint(address _to, uint8 _star, uint8 _rarity, uint8 _plantClass, uint256 _plantId) external onlySpawner {
+        nftContract.mint(_to, _star, _rarity, _plantClass, _plantId);
     }
     
     function spawners(address _address) external view returns (bool) {
@@ -78,8 +78,8 @@ contract CNFT is Ownable {
         _upgraders[_address] = false;
     }
 
-    function updatePlanIds(uint8 _class, uint256[] memory _plantIds) external onlyOwner {
-        nftContract.updatePlanIds(_class, _plantIds);
+    function updatePlanIds(uint8 _plantClass, uint8 _rarity, uint256[] memory _plantIds) external onlyOwner {
+        nftContract.updatePlanIds(_plantClass, _rarity, _plantIds);
     }
 
     function updateTotalClass(uint8 _totalClass) external onlyOwner {

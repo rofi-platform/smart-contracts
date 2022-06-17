@@ -50,7 +50,7 @@ contract Slot is Ownable {
         require(availableSlot > 0, "out of slot");
         uint256 total = _numberSlot.mul(perSlot);
         token.transferFrom(msg.sender, receiver, total);
-        availableSlot = availableSlot.sub(1);
+        availableSlot = availableSlot.sub(_numberSlot);
         uint256 currentSlotNumber = slotByUser[msg.sender];
         slotByUser[msg.sender] = currentSlotNumber.add(_numberSlot);
         uint256 nextRecordId = _getNextRecordId();

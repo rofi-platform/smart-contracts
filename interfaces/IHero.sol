@@ -6,7 +6,7 @@ interface IHero {
 	struct Hero {
         uint8 star;
         uint8 rarity;
-        uint8 class;
+        uint8 plantClass;
         uint256 plantId;
         uint256 bornAt;
     }

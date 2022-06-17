@@ -24,7 +24,7 @@ interface INFT is IUseController, IRandomRequester, IERC721, IHero {
 
     function updateTotalClass(uint8 _totalClass) external;
 
-    function getPlanIds(uint8 _class) external view returns (uint256[] memory);
+    function getPlanIds(uint8 _plantClass, uint8 _rarity) external view returns (uint256[] memory);
 
-    function updatePlanIds(uint8 _class, uint256[] memory _plantIds) external;
+    function updatePlanIds(uint8 _plantClass, uint8 _rarity, uint256[] memory _plantIds) external;
 }
