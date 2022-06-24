@@ -110,6 +110,7 @@ contract NFT is BannableERC721, Ownable, UseController {
 
     mapping (uint8 => mapping (uint8 => uint256[])) public planIds;
     
+    event MintHero(uint256 indexed tokenId, address to, uint8 star, uint8 rarity, uint8 plantClass, uint256 plantId);
     event InitHero(uint256 indexed tokenId, address to, uint8 star, uint8 rarity, uint8 plantClass, uint256 plantId);
     event ChangeStar(uint256 indexed tokenId, uint8 star);
         
@@ -166,7 +167,19 @@ contract NFT is BannableERC721, Ownable, UseController {
             bornAt: block.timestamp
         });
 
-        emit InitHero(nextTokenId, _to, _star, _rarity, _plantClass, _plantId);
+        emit MintHero(nextTokenId, _to, _star, _rarity, _plantClass, _plantId);
+    }
+
+    function initHero(uint256 _tokenId, uint8 _rarity, uint8 _plantClass, uint256 _plantId) public onlyController {
+        Hero storage hero = heros[_tokenId];
+        require(hero.rarity == 0 && hero.plantClass == 0 && hero.plantId == 0, "require: hero inited");
+
+        hero.rarity = _rarity;
+        hero.plantClass = _plantClass;
+        hero.plantId = _plantId;
+        address owner = ERC721(this).ownerOf(_tokenId);
+
+        emit InitHero(_tokenId, owner, hero.star, _rarity, _plantClass, _plantId);
     }
     
     function getHero(uint256 _tokenId) public view returns (Hero memory) {

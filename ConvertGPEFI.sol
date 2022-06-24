@@ -7,9 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IPEFI {
-    function mintUnlockedToken(address to, uint256 amount) external;
-    
-    function mintLockedToken(address to, uint256 amount) external;
+    function transfer(address recipient, uint256 amount) external returns (bool);
 }
 
 contract ConvertGPEFI is Ownable {
@@ -49,7 +47,7 @@ contract ConvertGPEFI is Ownable {
     function _convert(address _to, uint256 _total) internal {
         require(convertedToday.add(_total) <= dailyLimit, "exceed daily limit");
         convertedToday = convertedToday.add(_total);
-        pefi.mintUnlockedToken(_to, _total);
+        pefi.transfer(_to, _total);
     }
     
     function updateMerkleRoot(uint256 _timestamp, bytes32 _root) external onlyOwner {

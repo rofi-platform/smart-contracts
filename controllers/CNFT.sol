@@ -53,6 +53,10 @@ contract CNFT is Ownable {
     function mint(address _to, uint8 _star, uint8 _rarity, uint8 _plantClass, uint256 _plantId) external onlySpawner {
         nftContract.mint(_to, _star, _rarity, _plantClass, _plantId);
     }
+
+    function initHero(uint256 _tokenId, uint8 _rarity, uint8 _plantClass, uint256 _plantId) external onlySpawner {
+        nftContract.initHero(_tokenId, _rarity, _plantClass, _plantId);
+    }
     
     function spawners(address _address) external view returns (bool) {
         return _spawners[_address];

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./modules/NFT/Random-Test.sol";
+import "./modules/NFT/Random.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -28,6 +28,8 @@ interface INFT {
 
 interface ICNFT {
     function mint(address _to, uint8 _star, uint8 _rarity, uint8 _plantClass, uint256 _plantId) external;
+
+    function initHero(uint256 _tokenId, uint8 _rarity, uint8 _plantClass, uint256 _plantId) external;
 
     function getNft() external view returns (address);
 }
@@ -70,7 +72,7 @@ contract BoxNFT is Ownable, ERC721 {
 
     mapping (uint256 => uint256) requestTimestamp;
 
-    mapping (uint256 => address) requestUser;
+    mapping (uint256 => uint256) requestHeroId;
 
     mapping (uint8 => uint256) records;
 
@@ -82,6 +84,11 @@ contract BoxNFT is Ownable, ERC721 {
     event BoxMint(uint256 indexed tokenId, address user, uint8 boxType, uint256 timestamp);
 
     event BoxOpen(address indexed user, uint8 boxId, uint256 heroId, uint256 timestamp);
+
+    modifier onlyPaidFee {
+        address(random).call{value: msg.value}(new bytes(0));
+        _;
+    }
 
     constructor(address _cnft, address _receiver) ERC721("PE BOX", "PEBOX") {
         cnft = ICNFT(_cnft);
@@ -123,7 +130,7 @@ contract BoxNFT is Ownable, ERC721 {
         boxType.stock = boxType.stock.sub(_amount);
     }
 
-    function openBox(uint256[] memory _boxIds) external {
+    function openBox(uint256[] memory _boxIds) external payable onlyPaidFee {
         for (uint256 i = 0; i < _boxIds.length; i++) {
             uint256 boxId = _boxIds[i];
             require(ERC721(this).ownerOf(boxId) == _msgSender(), "require: not owner");
@@ -131,25 +138,23 @@ contract BoxNFT is Ownable, ERC721 {
             BoxType memory boxType = boxTypes[box.boxType];
             require(boxType.isAvailable == true, "require: not available");
             ERC721(this).transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), boxId);
-            if (boxType.useChainlink) {
-                requestRandomNumber(_msgSender(), box.boxType, block.timestamp);
-            } else {
-                _openBox(_msgSender(), box.boxType, 0, false, block.timestamp);
-            }
+            _openBox(_msgSender(), box.boxType, boxType.useChainlink, block.timestamp);
         }
     }
 
-    function _openBox(address _user, uint8 _boxTypeId, uint256 _randomNumber, bool _useChainlink, uint256 _timestamp) internal {
+    function _openBox(address _user, uint8 _boxTypeId, bool _useChainlink, uint256 _timestamp) internal {
         BoxType memory boxType = boxTypes[_boxTypeId];
-        if (_useChainlink == false) {
-            _randomNumber = getRandomNumber();
-        }
-        uint8 rarity = getHeroRarity(boxType.percents, _randomNumber.mod(100).add(1));
         INFT nft = INFT(cnft.getNft());
-        uint8 plantClass = uint8(_randomNumber.mod(nft.getTotalClass()).add(1));
-        uint256[] memory planIds = nft.getPlanIds(plantClass, rarity);
-        uint256 planId = planIds[_randomNumber.mod(planIds.length)];
-        cnft.mint(_user, boxType.star, rarity, plantClass, planId);
+        if (_useChainlink == false) {
+            uint256 _randomNumber = getRandomNumber();
+            uint8 rarity = getHeroRarity(boxType.percents, _randomNumber.mod(100).add(1));
+            uint8 plantClass = getPlantClass(_randomNumber);
+            uint256 planId = getPlantId(plantClass, rarity, _randomNumber);
+            cnft.mint(_user, boxType.star, rarity, plantClass, planId);
+        } else {
+            cnft.mint(_user, boxType.star, 0, 0, 0);
+            requestRandomNumber(nft.latestTokenId(), _boxTypeId, block.timestamp);
+        }
         emit BoxOpen(_user, _boxTypeId, nft.latestTokenId(), _timestamp);
     }
 
@@ -166,14 +171,25 @@ contract BoxNFT is Ownable, ERC721 {
         return rarity;
     }
 
+    function getPlantClass(uint256 _randomNumber) internal returns (uint8) {
+        INFT nft = INFT(cnft.getNft());
+        return uint8(_randomNumber.mod(nft.getTotalClass()).add(1));
+    }
+
+    function getPlantId(uint8 _planClass, uint8 _rarity, uint256 _randomNumber) internal returns (uint256) {
+        INFT nft = INFT(cnft.getNft());
+        uint256[] memory planIds = nft.getPlanIds(_planClass, _rarity);
+        return uint8(planIds[_randomNumber.mod(planIds.length)]);
+    }
+
     function getRandomNumber() internal returns (uint256) {
         nonce += 1;
         return uint256(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
     }
 
-    function requestRandomNumber(address _user, uint8 _boxTypeId, uint256 _timestamp) internal {
+    function requestRandomNumber(uint256 _heroId, uint8 _boxTypeId, uint256 _timestamp) internal {
         uint256 requestId = getNextRequestId();
-        requestUser[requestId] = _user;
+        requestHeroId[requestId] = _heroId;
         requestBoxTypeId[requestId] = _boxTypeId;
         requestTimestamp[requestId] = _timestamp;
         incrementRequestId();
@@ -181,10 +197,16 @@ contract BoxNFT is Ownable, ERC721 {
     }
 
     function submitRandomness(uint _requestId, uint _randomness) external onlyRandom {
-        address user = requestUser[_requestId];
+        uint256 heroId = requestHeroId[_requestId];
         uint8 boxTypeId = requestBoxTypeId[_requestId];
         uint256 timestamp = requestTimestamp[_requestId];
-        _openBox(user, boxTypeId, _randomness, true, timestamp);
+        BoxType memory boxType = boxTypes[boxTypeId];
+        INFT nft = INFT(cnft.getNft());
+        uint256 _randomNumber = getRandomNumber();
+        uint8 rarity = getHeroRarity(boxType.percents, _randomness.mod(100).add(1));
+        uint8 plantClass = getPlantClass(_randomness);
+        uint256 planId = getPlantId(plantClass, rarity, _randomness);
+        cnft.initHero(heroId, rarity, plantClass, planId);
     }
 
     function updateBox(uint8 _id, uint256 _price, uint8 _star, uint8[] memory _percents, uint256 _stock, uint256 _total, address _paymentToken, bool _useChainlink) external onlyOwner {
@@ -205,7 +227,7 @@ contract BoxNFT is Ownable, ERC721 {
     }
 
     function updateBoxTypeAvailable(uint8 _id, bool _available) external onlyOwner {
-        BoxType memory boxType = boxTypes[_id];
+        BoxType storage boxType = boxTypes[_id];
         boxType.isAvailable = _available;
     }
 
