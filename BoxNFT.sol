@@ -90,7 +90,7 @@ contract BoxNFT is Ownable, ERC721 {
         _;
     }
 
-    constructor(address _cnft, address _receiver) ERC721("PE BOX", "PEBOX") {
+    constructor(address _cnft, address _receiver) ERC721("PE Chest", "PECHEST") {
         cnft = ICNFT(_cnft);
         receiver = _receiver;
         random = new Random();
@@ -128,6 +128,23 @@ contract BoxNFT is Ownable, ERC721 {
             time++;
         }
         boxType.stock = boxType.stock.sub(_amount);
+    }
+
+    function forceMint(address _to, uint8 _boxType, uint8 _amount) external onlyOwner {
+        require(_amount >= 1, "require: at least 1");
+        BoxType storage boxType = boxTypes[_boxType];
+        uint8 time = 0;
+        while (time < _amount) {
+            uint256 nextTokenId = _getNextTokenId();
+            _mint(_to, nextTokenId);
+            
+            boxes[nextTokenId] = Box({
+                boxType: _boxType,
+                createdAt: block.timestamp
+            });
+            emit BoxMint(nextTokenId, _to, _boxType, block.timestamp);
+            time++;
+        }
     }
 
     function openBox(uint256[] memory _boxIds) external payable onlyPaidFee {
@@ -179,7 +196,7 @@ contract BoxNFT is Ownable, ERC721 {
     function getPlantId(uint8 _planClass, uint8 _rarity, uint256 _randomNumber) internal returns (uint256) {
         INFT nft = INFT(cnft.getNft());
         uint256[] memory planIds = nft.getPlanIds(_planClass, _rarity);
-        return uint8(planIds[_randomNumber.mod(planIds.length)]);
+        return planIds[_randomNumber.mod(planIds.length)];
     }
 
     function getRandomNumber() internal returns (uint256) {
