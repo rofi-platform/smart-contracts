@@ -4,17 +4,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-
-interface IHero {
-    struct Hero {
-        uint8 star;
-        uint8 rarity;
-        uint8 plantClass;
-        uint256 plantId;
-        uint256 bornAt;
-    }
-}
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 interface CNFT {
     function upgrade(uint256 _tokenId, uint8 _star) external;
@@ -26,6 +17,25 @@ interface IERC721 {
 	function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
+interface IHolyPackage is IERC721 {
+    struct Package {
+        string holyType;
+        uint256 createdAt;
+    }
+
+    function getPackage(uint256 _packageId) external returns (Package memory);
+}
+
+interface IHero {
+    struct Hero {
+        uint8 star;
+        uint8 rarity;
+        uint8 plantClass;
+        uint256 plantId;
+        uint256 bornAt;
+    }
+}
+
 interface INFT is IERC721, IHero {
 	function getHero(uint256 _tokenId) external view returns (Hero memory);
 }
@@ -34,12 +44,14 @@ interface IBEP20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
-contract UpgradeStar is Ownable, IHero {
+contract UpgradeStar is IHero, Ownable, Pausable {
+    using ECDSA for bytes32;
+
     CNFT public cnft;
     
     INFT public nft;
 
-    IERC721 public holyPackage;
+    IHolyPackage public holyPackage;
                 
     mapping (uint8 => uint256) upgradeStarFee;
 
@@ -53,6 +65,8 @@ contract UpgradeStar is Ownable, IHero {
 
     mapping (uint8 => Requirement) requirements;
 
+    mapping (uint8 => string) requireHolyColor;
+
     event StarUpgrade(uint256 heroId, uint8 newStar, bool isSuccess);
         
     address public deadAddress = 0x000000000000000000000000000000000000dEaD;
@@ -65,29 +79,31 @@ contract UpgradeStar is Ownable, IHero {
 
     mapping (uint256 => uint8) records;
 
+    uint256 public requestExpire = 300;
+
+    address public validator;
+
     constructor(address _nft, address _cnft, address _holyPackage, address _feeAddress) {
         nft = INFT(_nft);
         cnft = CNFT(_cnft);
-        holyPackage = IERC721(_holyPackage);
+        holyPackage = IHolyPackage(_holyPackage);
         feeAddress = _feeAddress;
     }
 
-    function upgradeStar(uint256 _heroId, uint256[] memory _holyPackageIds, uint8 _level, bytes32[] memory _proof) external {
+    function upgradeStar(uint256 _heroId, uint256[] memory _holyPackageIds, uint8 _level, uint256 _nonce, bytes memory _sign) external whenNotPaused {
         require(nft.ownerOf(_heroId) == _msgSender(), "require: must be owner");
         Hero memory hero = nft.getHero(_heroId);
-        uint8 currentStar = hero.star;
-        Requirement memory requirement = requirements[currentStar];
+        Requirement memory requirement = requirements[hero.star];
         require(_level >= requirement.levelRequire, "require: level not enough");
-        require(MerkleProof.verify(_proof, merkleRoot, bytes32(keccak256(abi.encodePacked(_heroId, _level)))), "data is outdated or invalid");
+        require(_nonce <= block.timestamp && block.timestamp <= _nonce + requestExpire, "Request expired");
+        require(validateSign(_heroId, _level, _nonce, _sign), "Invalid sign");
         uint256 length = _holyPackageIds.length;
         require(length == requirement.holyPackageRequire, "require: number of holy packages not correct");
-        bool isOwner = true;
+        string memory requiredHolyType = getRequiredHolyType(hero.plantClass);
         for (uint256 i = 0; i < length; i++) {
-            if (holyPackage.ownerOf(_holyPackageIds[i]) != _msgSender()) {
-                isOwner = false;
-            }
+            require(holyPackage.ownerOf(_holyPackageIds[i]) == _msgSender(), "require: must be owner of holies");
+            require(compareStrings(holyPackage.getPackage(_holyPackageIds[i]).holyType, requiredHolyType), "require: wrong holy type");
         }
-        require(isOwner, "require: must be owner of holies");
         IBEP20(requirement.token).transferFrom(_msgSender(), feeAddress, requirement.tokenRequire);
         uint8 upgradeTimes = records[_heroId] + 1;
         bool isSuccess = false;
@@ -97,15 +113,22 @@ contract UpgradeStar is Ownable, IHero {
             isSuccess = randomUpgrade(requirement.successPercents[upgradeTimes - 1]);
         }
         if (isSuccess) {
-            uint8 newStar = currentStar + 1;
+            records[_heroId] = upgradeTimes;
+            uint8 newStar = hero.star + 1;
             cnft.upgrade(_heroId, newStar);
             for (uint256 k = 1; k < length; k++) {
                 holyPackage.transferFrom(_msgSender(), deadAddress, _holyPackageIds[k]);
             }
             emit StarUpgrade(_heroId, newStar, true);
         } else {
-            emit StarUpgrade(_heroId, currentStar, false);
+            emit StarUpgrade(_heroId, hero.star, false);
         }
+    }
+
+    function validateSign(uint256 _heroId, uint8 _level, uint256 _nonce, bytes memory _sign) public view returns (bool) {
+        bytes32 _hash = keccak256(abi.encodePacked(_heroId, _level, _nonce));
+        address _signer = _hash.toEthSignedMessageHash().recover(_sign);
+        return _signer == validator;
     }
 
     function randomUpgrade(uint8 _successPercent) internal returns (bool) {
@@ -120,15 +143,6 @@ contract UpgradeStar is Ownable, IHero {
     function getRandomNumber() internal returns (uint) {
         nonce += 1;
         return uint(keccak256(abi.encodePacked(nonce, msg.sender, blockhash(block.number - 1))));
-    }
-
-    function updateMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        merkleRoot = _merkleRoot;
-    }
-    
-    function verifyMerkleProof(uint256 _heroId, uint8 _level, bytes32[] memory _proof) public view returns (bool valid) {
-        bytes32 leaf = keccak256(abi.encodePacked(_heroId, _level));
-        return MerkleProof.verify(_proof, merkleRoot, leaf);
     }
 
     function updateNft(address _newAddress) external onlyOwner {
@@ -147,6 +161,18 @@ contract UpgradeStar is Ownable, IHero {
         return requirements[_currentStar];
     }
 
+    function getRequiredHolyType(uint8 _plantClass) public view returns (string memory) {
+        if (_plantClass == 1) {
+            return "green";
+        } else if (_plantClass == 2) {
+            return "red";
+        } else if (_plantClass == 3) {
+            return "yellow";
+        } else {
+            return "blue";
+        }
+    }
+
     function setRequirement(uint8 _star, address _token, uint256 _tokenRequire, uint8 _levelRequire, uint8 _holyPackageRequire, uint8[] memory _successPercents) public onlyOwner {
         requirements[_star] = Requirement({
             token: _token,
@@ -155,5 +181,17 @@ contract UpgradeStar is Ownable, IHero {
             holyPackageRequire: _holyPackageRequire,
             successPercents: _successPercents
         });
+    }
+
+    function setValidator(address _validator) external onlyOwner {
+        validator = _validator;
+    }
+
+    function setExpireTime(uint256 _number) external onlyOwner {
+        requestExpire = _number;
+    }
+
+    function compareStrings(string memory a, string memory b) public pure returns (bool) {
+        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 }

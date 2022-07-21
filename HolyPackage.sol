@@ -5,13 +5,15 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract HolyPackage is ERC721, Ownable {
+contract HolyPackage is ERC721, Ownable, Pausable {
     using SafeMath for uint256;
+    using ECDSA for bytes32;
 
     struct Package {
-        uint8 holyType;
+        string holyType;
         uint256 createdAt;
     }
 
@@ -21,23 +23,18 @@ contract HolyPackage is ERC721, Ownable {
 
     uint256 private requiredTime = 60*60*4;
 
+    uint256 public requestExpire = 300;
+
+    address public validator;
+
     mapping (uint256 => Package) public packages;
 
     mapping (address => uint256) private history;
 
-    mapping (address => bool) public managers;
-
-    bytes32 public merkleRoot;
-
-    modifier onlyManager() {
-        require(managers[msg.sender], "require: only Manager");
-        _;
-    }
-
-    event NewPackage(address user, uint256 packageId, uint8 holyType, uint256 createdAt);
+    event NewPackage(address user, uint256 packageId, string holyType, uint256 createdAt);
 
     constructor() ERC721("Holy Package", "HOLYPACKAGE") {
-
+        validator = owner();
     }
 
     function _mint(address to, uint256 packageId) internal override(ERC721) {
@@ -46,20 +43,26 @@ contract HolyPackage is ERC721, Ownable {
         _incrementPackageId();
     }
 
-    function mint(address _to, uint256 _quantity, uint256 _total, uint8 _holyType, bytes32[] memory _proof) external {
-        require(history[_to] == 0 || (block.timestamp - history[_to]) >= requiredTime, "must wait");
-        require(verifyMerkleProof(_to, _total, _holyType, _proof), "proof not valid");
-        require(_quantity <= _total && _quantity >= holyRequired && _quantity.mod(holyRequired) == 0, "quantity not valid");
+    function mint(uint256 _quantity, string memory _holyType, uint256 _nonce, bytes memory _sign) external whenNotPaused {
+        uint256 _now = block.timestamp;
+        address _user = msg.sender;
+        require(_nonce <= _now && _now <= _nonce + requestExpire, "Request expired");
+        require(history[_user] == 0 || (block.timestamp - history[_user]) >= requiredTime, "Must wait");
+        require(_quantity >= holyRequired && _quantity.mod(holyRequired) == 0, "quantity not valid");
+        bytes32 _hash = keccak256(abi.encodePacked(_user, _quantity, _holyType, _nonce));
+        _hash = _hash.toEthSignedMessageHash();
+        address _signer = _hash.recover(_sign);
+        require(_signer == validator, "Invalid sign");
         uint256 times = _quantity.div(holyRequired);
         uint256 run = 0;
         while (run < times) {
-            _mintPackage(_to, _holyType);
+            _mintPackage(_user, _holyType);
             run++;
         }
-        history[_to] = block.timestamp;
+        history[_user] = block.timestamp;
     }
 
-    function _mintPackage(address _user, uint8 _holyType) internal {
+    function _mintPackage(address _user, string memory _holyType) internal {
         uint256 nextPackageId = _getNextPackageId();
         _mint(_user, nextPackageId);
         packages[nextPackageId] = Package({
@@ -67,14 +70,6 @@ contract HolyPackage is ERC721, Ownable {
             createdAt: block.timestamp
         });
         emit NewPackage(_user, nextPackageId, _holyType, block.timestamp);
-    }
-
-    function addManager(address _manager) external onlyOwner {
-        managers[_manager] = true;
-    }
-
-    function removeManager(address _manager) external onlyOwner {
-        managers[_manager] = false;
     }
 
     function getPackage(uint256 _packageId) public view returns (Package memory) {
@@ -109,11 +104,11 @@ contract HolyPackage is ERC721, Ownable {
         requiredTime = _number;
     }
 
-    function updateMerkleRoot(bytes32 _merkleRoot) external onlyManager {
-        merkleRoot = _merkleRoot;
+    function setValidator(address _validator) external onlyOwner {
+        validator = _validator;
     }
-    
-    function verifyMerkleProof(address _user, uint256 _quantity, uint8 _holyType, bytes32[] memory _proof) public view returns (bool valid) {
-        return MerkleProof.verify(_proof, merkleRoot, keccak256(abi.encodePacked(_user, _quantity, _holyType)));
+
+    function setExpireTime(uint256 _number) external onlyOwner {
+        requestExpire = _number;
     }
 }
