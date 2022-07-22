@@ -114,7 +114,7 @@ contract UpgradeStar is IHero, Ownable, Pausable {
             isSuccess = randomUpgrade(requirement.successPercents[upgradeTimes - 1]);
         }
         if (isSuccess) {
-            records[_heroId] = upgradeTimes;
+            records[_heroId] = 0;
             uint8 newStar = hero.star + 1;
             cnft.upgrade(_heroId, newStar);
             for (uint256 k = 1; k < length; k++) {
@@ -122,6 +122,7 @@ contract UpgradeStar is IHero, Ownable, Pausable {
             }
             emit StarUpgrade(_heroId, newStar, true);
         } else {
+            records[_heroId] = upgradeTimes;
             emit StarUpgrade(_heroId, hero.star, false);
         }
     }
@@ -162,6 +163,12 @@ contract UpgradeStar is IHero, Ownable, Pausable {
         return requirements[_currentStar];
     }
 
+    function getNextSuccessPercent(uint256 _heroId) public view returns (uint8) {
+        Hero memory hero = nft.getHero(_heroId);
+        Requirement memory requirement = requirements[hero.star];
+        return requirement.successPercents[records[_heroId]];
+    }
+
     function getRequiredHolyType(uint8 _plantClass) public view returns (string memory) {
         if (_plantClass == 1) {
             return "green";
@@ -194,5 +201,9 @@ contract UpgradeStar is IHero, Ownable, Pausable {
 
     function compareStrings(string memory a, string memory b) public pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
+    }
+
+    function updateHolyPackage(address _holyPackage) external onlyOwner {
+        holyPackage = IHolyPackage(_holyPackage);
     }
 }
