@@ -88,6 +88,7 @@ contract UpgradeStar is IHero, Ownable, Pausable {
         cnft = CNFT(_cnft);
         holyPackage = IHolyPackage(_holyPackage);
         feeAddress = _feeAddress;
+        validator = owner();
     }
 
     function upgradeStar(uint256 _heroId, uint256[] memory _holyPackageIds, uint8 _level, uint256 _nonce, bytes memory _sign) external whenNotPaused {
@@ -95,7 +96,7 @@ contract UpgradeStar is IHero, Ownable, Pausable {
         Hero memory hero = nft.getHero(_heroId);
         Requirement memory requirement = requirements[hero.star];
         require(_level >= requirement.levelRequire, "require: level not enough");
-        require(_nonce <= block.timestamp && block.timestamp <= _nonce + requestExpire, "Request expired");
+        require(block.timestamp <= _nonce + requestExpire, "Request expired");
         require(validateSign(_heroId, _level, _nonce, _sign), "Invalid sign");
         uint256 length = _holyPackageIds.length;
         require(length == requirement.holyPackageRequire, "require: number of holy packages not correct");
