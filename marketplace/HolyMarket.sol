@@ -49,6 +49,8 @@ contract NFTMarketplace is Ownable {
 
     uint256 public currentOrderId;
     uint256 public feeMarketRate = 4; // unit %.
+    address public receiver;
+    uint256 public minPrice;
     IERC20 public immutable currency;
 
     mapping(address => bool) public _listedNfts;
@@ -56,9 +58,11 @@ contract NFTMarketplace is Ownable {
     mapping(address => mapping(uint256 => ItemSale)) internal markets;
     mapping(address => mapping(address => EnumerableSet.UintSet)) private sellerTokens;
 
-    constructor(address _currencyERC20, address _nftListed){
+    constructor(address _currencyERC20, address _nftListed, address _receiver, uint256 _minPrice){
         currency = IERC20(_currencyERC20);
         _listedNfts[_nftListed] = true;
+        receiver = _receiver;
+        minPrice = _minPrice;
     }
 
     modifier onlyListedNft(address _nftAddress) {
@@ -74,7 +78,9 @@ contract NFTMarketplace is Ownable {
     function placeOrder(address _nftAddress, uint256 _tokenId, uint256 _price) public onlyListedNft(_nftAddress) {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
         require(_price > 0, "Nothing is free");
-
+        if (minPrice > 0) {
+            require(_price > minPrice, "Too cheap");
+        }
         tokenOrder(_nftAddress, _tokenId, true, _price);
 
         emit PlaceOrder(currentOrderId, _nftAddress, _tokenId, _msgSender(), _price);
@@ -108,7 +114,7 @@ contract NFTMarketplace is Ownable {
         require(itemSale.price == _price, "Price not match!");
         uint256 feeMarket = itemSale.price.mul(feeMarketRate).div(100);
         if (feeMarket > 0) {
-            currency.transferFrom(_msgSender(), owner(), feeMarket);
+            currency.transferFrom(_msgSender(), receiver, feeMarket);
         }
         currency.transferFrom(
             _msgSender(),
@@ -172,5 +178,13 @@ contract NFTMarketplace is Ownable {
 
     function delistNft(address _nftAddress) external onlyOwner {
         _listedNfts[_nftAddress] = false;
+    }
+
+    function setMinPrice(uint256 _minPrice) external onlyOwner {
+        minPrice = _minPrice;
+    }
+
+    function setReceiver(address _receiver) external onlyOwner {
+        receiver = _receiver;
     }
 }
