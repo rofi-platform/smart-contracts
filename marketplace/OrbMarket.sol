@@ -105,6 +105,10 @@ contract HeroMarket is Ownable {
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         require(itemSale.owner == _msgSender(), "not own");
 
+        if (minPrice > 0) {
+            require(_price >= minPrice, "Must exceed min price");
+        }
+
         itemSale.price = _price;
 
         emit UpdatePrice(itemSale.orderId, _nftAddress, _tokenId, _msgSender(), _price);

@@ -7,8 +7,55 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract NFTMarketplace is Ownable {
+abstract contract Bannable {
+    mapping(address => mapping(uint256 => bool)) private _isBanned;
+
+    modifier onlyNotBanned(address _nft, uint256 _tokenId) {
+        require(!_isBanned[_nft][_tokenId], "banned");
+        _;
+    }
+
+    modifier onlyBanned(address _nft, uint256 _tokenId) {
+        require(_isBanned[_nft][_tokenId], "not banned");
+        _;
+    }
+
+    event Ban(address nft, uint256 tokenId, string reason);
+
+    event Unban(address nft, uint256 tokenId, string reason);
+
+    function _ban(address _nft, uint256 _tokenId, string memory _reason) internal virtual onlyNotBanned(_nft, _tokenId) {
+        _isBanned[_nft][_tokenId] = true;
+        emit Ban(_nft, _tokenId, _reason);
+    }
+
+    function _unban(address _nft, uint256 _tokenId, string memory _reason) internal virtual onlyBanned(_nft, _tokenId) {
+        _isBanned[_nft][_tokenId] = false;
+        emit Unban(_nft, _tokenId, _reason);
+    }
+}
+
+abstract contract Controller is Ownable, Pausable, Bannable {
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    function ban(address _nft, uint256 _tokenId, string memory _reason) external onlyOwner {
+        _ban(_nft, _tokenId, _reason);
+    }
+
+    function unban(address _nft, uint256 _tokenId, string memory _reason) external onlyOwner {
+        _unban(_nft, _tokenId, _reason);
+    }
+}
+
+contract NFTMarketplace is Controller {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -79,7 +126,7 @@ contract NFTMarketplace is Ownable {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
         require(_price > 0, "Nothing is free");
         if (minPrice > 0) {
-            require(_price > minPrice, "Too cheap");
+            require(_price >= minPrice, "Must exceed min price");
         }
         tokenOrder(_nftAddress, _tokenId, true, _price);
 
@@ -102,6 +149,10 @@ contract NFTMarketplace is Ownable {
         require(tokenSales[_nftAddress].contains(_tokenId), "not sale");
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         require(itemSale.owner == _msgSender(), "not own");
+
+        if (minPrice > 0) {
+            require(_price >= minPrice, "Must exceed min price");
+        }
 
         itemSale.price = _price;
 
@@ -126,7 +177,7 @@ contract NFTMarketplace is Ownable {
         emit FillOrder(_orderId, _nftAddress, _tokenId, _msgSender());
     }
 
-    function tokenOrder(address _nftAddress, uint256 _tokenId, bool _sell, uint256 _price) internal {
+    function tokenOrder(address _nftAddress, uint256 _tokenId, bool _sell, uint256 _price) internal onlyNotBanned(_nftAddress, _tokenId) {
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         if (_sell) {
             IERC721(_nftAddress).transferFrom(_msgSender(), address(this), _tokenId);
