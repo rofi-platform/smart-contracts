@@ -4,7 +4,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 interface IOrbNFT {
     function mintOrb(address to, uint8 _star, uint8 _rarity, uint8 _classType) external;
@@ -12,44 +13,38 @@ interface IOrbNFT {
     function latestOrbId() external view returns (uint256);
 }
 
-contract MintOrb is Ownable {
+contract MintOrb is Ownable, Pausable {
     using SafeMath for uint256;
+    using ECDSA for bytes32;
 
     IOrbNFT private orbNFT; 
 
-    mapping (address => bool) public managers;
-
     mapping (bytes32 => bool) public history;
 
-    bytes32 public merkleRoot;
+    address public validator;
 
-    modifier onlyManager() {
-        require(managers[msg.sender], "require: only Manager");
-        _;
-    }
+    uint256 public requestExpire = 300;
 
     event MintOrbSuccess(address user, uint256 orbId, bytes32 localId);
 
     constructor(address _orbNFT) {
         orbNFT = IOrbNFT(_orbNFT);
+        validator = owner();
     }
 
-    function mintOrb(bytes32 _localId, uint8 _star, uint8 _rarity, uint8 _classType, bytes32[] memory _proof) external {
+    function mintOrb(bytes32 _localId, uint8 _star, uint8 _rarity, uint8 _classType, uint256 _nonce, bytes memory _sign) external whenNotPaused {
+        uint256 _now = block.timestamp;
         address user = msg.sender;
-        require(verifyMerkleProof(user, _localId, _star, _rarity, _classType, _proof), "proof not valid");
+        require(_now <= _nonce + requestExpire, "Request expired");
         require(history[_localId] != true, "orb minted");
+        bytes32 _hash = keccak256(abi.encodePacked(user, _localId, _star, _rarity, _classType, _nonce));
+        _hash = _hash.toEthSignedMessageHash();
+        address _signer = _hash.recover(_sign);
+        require(_signer == validator, "Invalid sign");
         orbNFT.mintOrb(user, _star, _rarity, _classType);
         uint256 orbId = orbNFT.latestOrbId();
         history[_localId] = true;
         emit MintOrbSuccess(user, orbId, _localId);
-    }
-    
-    function updateMerkleRoot(bytes32 _merkleRoot) external onlyManager {
-        merkleRoot = _merkleRoot;
-    }
-    
-    function verifyMerkleProof(address _user, bytes32 _localId, uint8 _star, uint8 _rarity, uint8 _classType, bytes32[] memory _proof) public view returns (bool valid) {
-        return MerkleProof.verify(_proof, merkleRoot, keccak256(abi.encodePacked(_user, _localId, _star, _rarity, _classType)));
     }
 
     function getOrbNFT() external view returns (address) {
@@ -60,11 +55,11 @@ contract MintOrb is Ownable {
         orbNFT = IOrbNFT(_orbNFT);
     }
 
-    function addManager(address _manager) external onlyOwner {
-        managers[_manager] = true;
+    function setValidator(address _validator) external onlyOwner {
+        validator = _validator;
     }
 
-    function removeManager(address _manager) external onlyOwner {
-        managers[_manager] = false;
+    function setExpireTime(uint256 _number) external onlyOwner {
+        requestExpire = _number;
     }
 }
