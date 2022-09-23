@@ -31,6 +31,10 @@ contract HolyPackage is ERC721, Ownable, Pausable {
 
     mapping (address => uint256) private history;
 
+    mapping (address => bool) whitelistSenders;
+
+    mapping (address => bool) whitelistReceivers;
+
     event NewPackage(address user, uint256 packageId, string holyType, uint256 createdAt);
 
     constructor() ERC721("Holy Package", "HOLYPACKAGE") {
@@ -46,7 +50,7 @@ contract HolyPackage is ERC721, Ownable, Pausable {
     function mint(uint256 _quantity, string memory _holyType, uint256 _nonce, bytes memory _sign) external whenNotPaused {
         uint256 _now = block.timestamp;
         address _user = msg.sender;
-        require(_nonce <= _now && _now <= _nonce + requestExpire, "Request expired");
+        require(_now <= _nonce + requestExpire, "Request expired");
         require(history[_user] == 0 || (block.timestamp - history[_user]) >= requiredTime, "Must wait");
         require(_quantity >= holyRequired && _quantity.mod(holyRequired) == 0, "quantity not valid");
         bytes32 _hash = keccak256(abi.encodePacked(_user, _quantity, _holyType, _nonce));
@@ -110,5 +114,34 @@ contract HolyPackage is ERC721, Ownable, Pausable {
 
     function setExpireTime(uint256 _number) external onlyOwner {
         requestExpire = _number;
+    }
+
+    function _transfer(address from, address to, uint256 tokenId) internal virtual override {
+        require(whitelistSenders[from] || whitelistReceivers[to], "not whitelist");
+        super._transfer(from, to, tokenId);
+    }
+
+    function isWhitelistSender(address _address) public view returns (bool) {
+        return whitelistSenders[_address];
+    }
+
+    function addWhitelistSender(address _address) public onlyOwner {
+        whitelistSenders[_address] = true;
+    }
+
+    function removeWhitelistSender(address _address) public onlyOwner {
+        whitelistSenders[_address] = false;
+    }
+
+    function isWhitelistReceiver(address _address) public view returns (bool) {
+        return whitelistReceivers[_address];
+    }
+
+    function addWhitelistReceiver(address _address) public onlyOwner {
+        whitelistReceivers[_address] = true;
+    }
+
+    function removeWhitelistReceiver(address _address) public onlyOwner {
+        whitelistReceivers[_address] = false;
     }
 }
