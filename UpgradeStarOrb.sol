@@ -47,7 +47,7 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
 
     struct Requirement {
         address token;
-        uint256 tokenRequire;
+        uint256[] tokenRequire;
         uint8 holyPackageRequire;
         uint8[] successPercents;
     }
@@ -147,7 +147,7 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
         }
     }
 
-    function setRequirement(uint8 _star, address _token, uint256 _tokenRequire, uint8 _holyPackageRequire, uint8[] memory _successPercents) public onlyOwner {
+    function setRequirement(uint8 _star, address _token, uint256[] memory _tokenRequire, uint8 _holyPackageRequire, uint8[] memory _successPercents) public onlyOwner {
         requirements[_star] = Requirement({
             token: _token,
             tokenRequire: _tokenRequire,
@@ -166,6 +166,6 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
 
     function getFee(uint8 _star, uint8 _rarity) public view returns (uint256) {
         Requirement memory requirement = requirements[_star];
-        return requirement.tokenRequire[_rarity + 1];
+        return requirement.tokenRequire[_rarity - 1];
     }
 }

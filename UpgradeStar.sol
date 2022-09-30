@@ -209,6 +209,6 @@ contract UpgradeStar is IHero, Ownable, Pausable {
 
     function getFee(uint8 _star, uint8 _rarity) public view returns (uint256) {
         Requirement memory requirement = requirements[_star];
-        return requirement.tokenRequire[_rarity + 1];
+        return requirement.tokenRequire[_rarity - 1];
     }
 }
