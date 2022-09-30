@@ -81,7 +81,10 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
             require(holyPackage.ownerOf(_holyPackageIds[i]) == _msgSender(), "require: must be owner of holies");
             require(compareStrings(holyPackage.getPackage(_holyPackageIds[i]).holyType, requiredHolyType), "require: wrong holy type");
         }
-        IBEP20(requirement.token).transferFrom(_msgSender(), feeAddress, requirement.tokenRequire);
+        IBEP20(requirement.token).transferFrom(_msgSender(), feeAddress, getFee(orb.star, orb.rarity));
+        for (uint256 k = 0; k < length; k++) {
+            holyPackage.transferFrom(_msgSender(), deadAddress, _holyPackageIds[k]);
+        }
         uint8 upgradeTimes = records[_orbId] + 1;
         bool isSuccess = false;
         if (upgradeTimes == requirement.successPercents.length) {
@@ -93,9 +96,6 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
             records[_orbId] = 0;
             uint8 newStar = orb.star + 1;
             orbNft.updateStar(_orbId, newStar);
-            for (uint256 k = 0; k < length; k++) {
-                holyPackage.transferFrom(_msgSender(), deadAddress, _holyPackageIds[k]);
-            }
             emit StarUpgrade(_orbId, newStar, true);
         } else {
             records[_orbId] = upgradeTimes;
@@ -137,13 +137,13 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
 
     function getRequiredHolyType(uint8 _classType) public view returns (string memory) {
         if (_classType == 1) {
-            return "green";
+            return "blue";
         } else if (_classType == 2) {
             return "red";
         } else if (_classType == 3) {
             return "yellow";
         } else {
-            return "blue";
+            return "green";
         }
     }
 
@@ -162,5 +162,10 @@ contract UpgradeStarOrb is IOrb, Ownable, Pausable {
 
     function compareStrings(string memory a, string memory b) public pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
+    }
+
+    function getFee(uint8 _star, uint8 _rarity) public view returns (uint256) {
+        Requirement memory requirement = requirements[_star];
+        return requirement.tokenRequire[_rarity + 1];
     }
 }

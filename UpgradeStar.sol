@@ -57,7 +57,7 @@ contract UpgradeStar is IHero, Ownable, Pausable {
 
     struct Requirement {
         address token;
-        uint256 tokenRequire;
+        uint256[] tokenRequire;
         uint8 levelRequire;
         uint8 holyPackageRequire;
         uint8[] successPercents;
@@ -105,7 +105,10 @@ contract UpgradeStar is IHero, Ownable, Pausable {
             require(holyPackage.ownerOf(_holyPackageIds[i]) == _msgSender(), "require: must be owner of holies");
             require(compareStrings(holyPackage.getPackage(_holyPackageIds[i]).holyType, requiredHolyType), "require: wrong holy type");
         }
-        IBEP20(requirement.token).transferFrom(_msgSender(), feeAddress, requirement.tokenRequire);
+        IBEP20(requirement.token).transferFrom(_msgSender(), feeAddress, getFee(hero.star, hero.rarity));
+        for (uint256 k = 0; k < length; k++) {
+            holyPackage.transferFrom(_msgSender(), deadAddress, _holyPackageIds[k]);
+        }
         uint8 upgradeTimes = records[_heroId] + 1;
         bool isSuccess = false;
         if (upgradeTimes == requirement.successPercents.length) {
@@ -117,9 +120,6 @@ contract UpgradeStar is IHero, Ownable, Pausable {
             records[_heroId] = 0;
             uint8 newStar = hero.star + 1;
             cnft.upgrade(_heroId, newStar);
-            for (uint256 k = 1; k < length; k++) {
-                holyPackage.transferFrom(_msgSender(), deadAddress, _holyPackageIds[k]);
-            }
             emit StarUpgrade(_heroId, newStar, true);
         } else {
             records[_heroId] = upgradeTimes;
@@ -171,17 +171,17 @@ contract UpgradeStar is IHero, Ownable, Pausable {
 
     function getRequiredHolyType(uint8 _plantClass) public view returns (string memory) {
         if (_plantClass == 1) {
-            return "green";
+            return "blue";
         } else if (_plantClass == 2) {
             return "red";
         } else if (_plantClass == 3) {
             return "yellow";
         } else {
-            return "blue";
+            return "green";
         }
     }
 
-    function setRequirement(uint8 _star, address _token, uint256 _tokenRequire, uint8 _levelRequire, uint8 _holyPackageRequire, uint8[] memory _successPercents) public onlyOwner {
+    function setRequirement(uint8 _star, address _token, uint256[] memory _tokenRequire, uint8 _levelRequire, uint8 _holyPackageRequire, uint8[] memory _successPercents) public onlyOwner {
         requirements[_star] = Requirement({
             token: _token,
             tokenRequire: _tokenRequire,
@@ -205,5 +205,10 @@ contract UpgradeStar is IHero, Ownable, Pausable {
 
     function updateHolyPackage(address _holyPackage) external onlyOwner {
         holyPackage = IHolyPackage(_holyPackage);
+    }
+
+    function getFee(uint8 _star, uint8 _rarity) public view returns (uint256) {
+        Requirement memory requirement = requirements[_star];
+        return requirement.tokenRequire[_rarity + 1];
     }
 }

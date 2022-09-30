@@ -43,6 +43,8 @@ contract HeroMarket is Ownable {
 
     uint256 public currentOrderId;
     uint256 public feeMarketRate = 4; // unit %.
+    address public receiver;
+    uint256 public minPrice;
     IERC20 public immutable currency;
 
     mapping(address => bool) public _listedNfts;
@@ -52,9 +54,11 @@ contract HeroMarket is Ownable {
 
     uint8 public minStar = 3;
 
-    constructor(address _currencyERC20, address _nftListed){
+    constructor(address _currencyERC20, address _nftListed, address _receiver, uint256 _minPrice){
         currency = IERC20(_currencyERC20);
         _listedNfts[_nftListed] = true;
+        receiver = _receiver;
+        minPrice = _minPrice;
     }
 
     modifier onlyListedNft(address _nftAddress) {
@@ -76,7 +80,9 @@ contract HeroMarket is Ownable {
         require(IERC721(_nftAddress).ownerOf(_tokenId) == _msgSender(), "Not owner of NFT");
         require((INFT(_nftAddress).getHero(_tokenId)).star >= minStar, "Invalid NFT star");
         require(_price > 0, "Nothing is free");
-
+        if (minPrice > 0) {
+            require(_price >= minPrice, "Must exceed min price");
+        }
         tokenOrder(_nftAddress, _tokenId, true, _price);
 
         emit PlaceOrder(currentOrderId, _nftAddress, _tokenId, _msgSender(), _price);
@@ -99,6 +105,10 @@ contract HeroMarket is Ownable {
         ItemSale storage itemSale = markets[_nftAddress][_tokenId];
         require(itemSale.owner == _msgSender(), "not own");
 
+        if (minPrice > 0) {
+            require(_price >= minPrice, "Must exceed min price");
+        }
+
         itemSale.price = _price;
 
         emit UpdatePrice(itemSale.orderId, _nftAddress, _tokenId, _msgSender(), _price);
@@ -110,7 +120,7 @@ contract HeroMarket is Ownable {
         require(itemSale.price == _price, "Price not match!");
         uint256 feeMarket = itemSale.price.mul(feeMarketRate).div(100);
         if (feeMarket > 0) {
-            currency.transferFrom(_msgSender(), owner(), feeMarket);
+            currency.transferFrom(_msgSender(), receiver, feeMarket);
         }
         currency.transferFrom(
             _msgSender(),
@@ -183,5 +193,13 @@ contract HeroMarket is Ownable {
 
     function delistNft(address _nftAddress) external onlyOwner {
         _listedNfts[_nftAddress] = false;
+    }
+
+    function setMinPrice(uint256 _minPrice) external onlyOwner {
+        minPrice = _minPrice;
+    }
+
+    function setReceiver(address _receiver) external onlyOwner {
+        receiver = _receiver;
     }
 }
