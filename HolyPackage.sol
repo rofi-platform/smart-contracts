@@ -37,7 +37,7 @@ contract HolyPackage is ERC721, Ownable, Pausable {
 
     event NewPackage(address user, uint256 packageId, string holyType, uint256 createdAt);
 
-    constructor() ERC721("Holy Package", "HOLYPACKAGE") {
+    constructor() ERC721("Holy Package S2", "HOLYPACKAGES2") {
         validator = owner();
     }
 

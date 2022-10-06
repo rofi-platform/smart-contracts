@@ -38,7 +38,7 @@ contract OrbNFT is ERC721, Ownable {
     event UpdateStar(uint256 orbId, uint8 newStar);
     event UpdateRarity(uint256 orbId, uint8 newRarity);
 
-    constructor() ERC721("Orb", "ORB") {
+    constructor() ERC721("Orb S2", "ORBS2") {
 
     }
 

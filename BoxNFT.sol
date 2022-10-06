@@ -90,7 +90,7 @@ contract BoxNFT is Ownable, ERC721 {
         _;
     }
 
-    constructor(address _cnft, address _receiver) ERC721("PE Chest", "PECHEST") {
+    constructor(address _cnft, address _receiver) ERC721("PE Chest S2", "PECHESTS2") {
         cnft = ICNFT(_cnft);
         receiver = _receiver;
         random = new Random();
