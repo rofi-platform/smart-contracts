@@ -102,6 +102,10 @@ contract StakeHerofi is Ownable, IHero {
         return recordIds;
     }
 
+	function getRecord(uint256 _recordId) public view returns (Record memory) {
+        return records[_recordId];
+    }
+
 	function withdraw(uint256[] memory _nftIds) external onlyOwner {
 		for (uint256 i = 0; i < _nftIds.length; i++) {
             herofiNft.transferFrom(address(this), msg.sender, _nftIds[i]);
