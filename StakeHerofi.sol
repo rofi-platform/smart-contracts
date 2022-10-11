@@ -40,6 +40,8 @@ contract StakeHerofi is Ownable, IHero {
 
 	uint256 public stakePeriod = 180 days;
 
+    bool public available = true;
+
 	mapping(uint256 => Record) public records;
 
 	mapping (address => EnumerableSet.UintSet) private stakingRecords;
@@ -60,6 +62,7 @@ contract StakeHerofi is Ownable, IHero {
 	}
 
 	function stake(uint256[] memory _nftIds) external {
+        require(available, "not available");
 		uint256 length = _nftIds.length;
 		for (uint256 i = 0; i < length; i++) {
             require(herofiNft.ownerOf(_nftIds[i]) == msg.sender, "not owner");
@@ -107,5 +110,9 @@ contract StakeHerofi is Ownable, IHero {
 
 	function updateStakePeriod(uint256 _stakePeriod) external onlyOwner {
 		stakePeriod = _stakePeriod;
+	}
+
+    function updateAvailable(bool _available) external onlyOwner {
+		available = _available;
 	}
 }
