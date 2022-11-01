@@ -128,8 +128,7 @@ contract PlantFusion is Ownable, IHero {
 		if (isSuccess) {
 			rarity = requiredRarity + 1;
 		}
-		uint256 plantId = getPlantId(plantClass, rarity, randomNumber);
-		cnft.mint(_msgSender(), 3, rarity, plantClass, plantId);
+		cnft.mint(_msgSender(), 3, rarity, plantClass, getPlantId(plantClass, rarity, randomNumber));
 		emit Fusion(_msgSender(), isSuccess, _heroIds, nft.latestTokenId());
 	}
 
