@@ -72,7 +72,7 @@ contract OrbFusion is Ownable, IOrb {
 
 	uint8 classAddRate;
 
-	event Fusion(bool isSuccess, uint256[] orbIds, uint256 newOrbId);
+	event Fusion(address indexed user, bool isSuccess, uint256[] orbIds, uint256 newOrbId);
 
 	constructor(address _orbNft, address _holyPackage, uint8 _classBaseRate, uint8 _classAddRate) {
         orbNft = IOrbNFT(_orbNft);
@@ -119,7 +119,7 @@ contract OrbFusion is Ownable, IOrb {
 			rarity = requiredRarity + 1;
 		}
 		orbNft.mintOrb(_msgSender(), 3, rarity, orbClass);
-		emit Fusion(isSuccess, _orbIds, orbNft.latestOrbId());
+		emit Fusion(_msgSender(), isSuccess, _orbIds, orbNft.latestOrbId());
 	}
 
 	function getFee(uint8 _rarity) public view returns (uint256) {

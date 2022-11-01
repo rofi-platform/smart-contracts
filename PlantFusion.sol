@@ -81,7 +81,7 @@ contract PlantFusion is Ownable, IHero {
 
 	uint8 classAddRate;
 
-	event Fusion(bool isSuccess, uint256[] heroIds, uint256 _newHeroId);
+	event Fusion(address indexed user, bool isSuccess, uint256[] heroIds, uint256 _newHeroId);
 
 	constructor(address _cnft, address _holyPackage, uint8 _classBaseRate, uint8 _classAddRate) {
 		cnft = ICNFT(_cnft);
@@ -130,7 +130,7 @@ contract PlantFusion is Ownable, IHero {
 		}
 		uint256 plantId = getPlantId(plantClass, rarity, randomNumber);
 		cnft.mint(_msgSender(), 3, rarity, plantClass, plantId);
-		emit Fusion(isSuccess, _heroIds, nft.latestTokenId());
+		emit Fusion(_msgSender(), isSuccess, _heroIds, nft.latestTokenId());
 	}
 
 	function getPlantId(uint8 _planClass, uint8 _rarity, uint256 _randomNumber) internal returns (uint256) {
