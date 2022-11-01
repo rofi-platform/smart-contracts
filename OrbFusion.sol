@@ -5,20 +5,13 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-interface IHero {
-    struct Hero {
+interface IOrb {
+    struct Orb {
         uint8 star;
         uint8 rarity;
-        uint8 plantClass;
-        uint256 plantId;
+        uint8 classType;
         uint256 bornAt;
     }
-}
-
-interface ICNFT {
-    function mint(address _to, uint8 _star, uint8 _rarity, uint8 _plantClass, uint256 _plantId) external;
-
-    function getNft() external view returns (address);
 }
 
 interface IERC721 {
@@ -27,14 +20,12 @@ interface IERC721 {
 	function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
-interface INFT is IERC721, IHero {
-	function latestTokenId() external view returns(uint);
+interface IOrbNFT is IERC721, IOrb {
+	function getOrb(uint256 _tokenId) external view returns (Orb memory);
 
-	function getHero(uint256 _tokenId) external view returns (Hero memory);
+    function mintOrb(address to, uint8 _star, uint8 _rarity, uint8 _classType) external;
 
-	function getTotalClass() external view returns (uint8);
-
-    function getPlanIds(uint8 _plantClass, uint8 _rarity) external view returns (uint256[] memory);
+    function latestOrbId() external view returns (uint256);
 }
 
 interface IHolyPackage is IERC721 {
@@ -50,10 +41,10 @@ interface IBEP20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
-contract PlantFusion is Ownable, IHero {
+contract OrbFusion is Ownable, IOrb {
 	using SafeMath for uint256;
 
-	ICNFT public cnft;
+    IOrbNFT public orbNft;
 
 	IHolyPackage public holyPackage;
 
@@ -67,7 +58,7 @@ contract PlantFusion is Ownable, IHero {
 
 	mapping (uint8 => Requirement) public requirements;
 
-	mapping (string => uint8) public plantClasses;
+	mapping (string => uint8) public orbClasses;
 
 	uint nonce = 0;
 
@@ -75,28 +66,27 @@ contract PlantFusion is Ownable, IHero {
 
     address public feeAddress = 0x81F403fE697CfcF2c21C019bD546C6b36370458c;
 
-	uint8[] classList = [1,2,3,4];
+	uint8[] classList = [1,2,3];
 
 	uint8 classBaseRate;
 
 	uint8 classAddRate;
 
-	event Fusion(bool isSuccess, uint256[] heroIds, uint256 _newHeroId);
+	event Fusion(bool isSuccess, uint256[] orbIds, uint256 newOrbId);
 
-	constructor(address _cnft, address _holyPackage, uint8 _classBaseRate, uint8 _classAddRate) {
-		cnft = ICNFT(_cnft);
+	constructor(address _orbNft, address _holyPackage, uint8 _classBaseRate, uint8 _classAddRate) {
+        orbNft = IOrbNFT(_orbNft);
 		holyPackage = IHolyPackage(_holyPackage);
 		classBaseRate = _classBaseRate;
 		classAddRate = _classAddRate;
 	}
 
-	function fusion(uint256[] memory _heroIds, uint256[] memory _holyPackageIds) external {
-		INFT nft = INFT(cnft.getNft());
-		uint8 requiredRarity = nft.getHero(_heroIds[0]).rarity;
+	function fusion(uint256[] memory _orbIds, uint256[] memory _holyPackageIds) external {
+		uint8 requiredRarity = orbNft.getOrb(_orbIds[0]).rarity;
 		require(requiredRarity > 2 && requiredRarity < 5, "require: invalid rariry");
-		for (uint256 k = 0; k < _heroIds.length; k++) {
-            require(nft.ownerOf(_heroIds[k]) == _msgSender(), "require: must be owner of plants");
-			require(nft.getHero(_heroIds[k]).rarity == requiredRarity, "require: must same rariry");
+		for (uint256 k = 0; k < _orbIds.length; k++) {
+            require(orbNft.ownerOf(_orbIds[k]) == _msgSender(), "require: must be owner of orb");
+			require(orbNft.getOrb(_orbIds[k]).rarity == requiredRarity, "require: must same rariry");
 		}
         Requirement memory requirement = requirements[requiredRarity];
 		require(requirement.token != address(0), "invalid token");
@@ -112,32 +102,25 @@ contract PlantFusion is Ownable, IHero {
 			for (uint256 i = 0; i < length; i++) {
 				holyPackage.transferFrom(_msgSender(), deadAddress, _holyPackageIds[i]);
 			}
-			targetClass = plantClasses[requiredHolyType];
+			targetClass = orbClasses[requiredHolyType];
 		}
 		uint8 successRate = getSuccessRate(requirement.baseRate, requirement.addRate, length);
 		require(successRate <= 100, "invalid");
 		IBEP20(requirement.token).transferFrom(_msgSender(), feeAddress, getFee(requiredRarity));
-		for (uint256 k = 0; k < _heroIds.length; k++) {
-			nft.transferFrom(_msgSender(), deadAddress, _heroIds[k]);
+		for (uint256 k = 0; k < _orbIds.length; k++) {
+			orbNft.transferFrom(_msgSender(), deadAddress, _orbIds[k]);
 		}
 		uint256 randomNumber = getRandomNumber();
 		bool isSuccess = randomFusion(randomNumber, successRate);
 		uint8 classSuccessRate = getSuccessRate(classBaseRate, classAddRate, length);
-		uint8 plantClass = randomClass(randomNumber, classSuccessRate, targetClass);
+		uint8 orbClass = randomClass(randomNumber, classSuccessRate, targetClass);
 		uint8 rarity = requiredRarity;
 		if (isSuccess) {
 			rarity = requiredRarity + 1;
 		}
-		uint256 plantId = getPlantId(plantClass, rarity, randomNumber);
-		cnft.mint(_msgSender(), 3, rarity, plantClass, plantId);
-		emit Fusion(isSuccess, _heroIds, nft.latestTokenId());
+		orbNft.mintOrb(_msgSender(), 3, rarity, orbClass);
+		emit Fusion(isSuccess, _orbIds, orbNft.latestOrbId());
 	}
-
-	function getPlantId(uint8 _planClass, uint8 _rarity, uint256 _randomNumber) internal returns (uint256) {
-        INFT nft = INFT(cnft.getNft());
-        uint256[] memory planIds = nft.getPlanIds(_planClass, _rarity);
-        return planIds[_randomNumber.mod(planIds.length)];
-    }
 
 	function getFee(uint8 _rarity) public view returns (uint256) {
 		Requirement memory requirement = requirements[_rarity];
@@ -191,8 +174,8 @@ contract PlantFusion is Ownable, IHero {
         });
     }
 
-	function setPlanClasses(string memory _holyType, uint8 _planClass) external onlyOwner {
-		plantClasses[_holyType] = _planClass;
+	function setOrbClasses(string memory _holyType, uint8 _orbClass) external onlyOwner {
+		orbClasses[_holyType] = _orbClass;
 	}
 
 	function compareStrings(string memory a, string memory b) public pure returns (bool) {
