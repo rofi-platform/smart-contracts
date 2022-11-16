@@ -19,6 +19,14 @@ interface ChestPiece {
     function latestTokenId() external view returns(uint);
 }
 
+interface SBT {
+    function balanceOf(address owner) external view returns (uint256);
+}
+
+interface Token {
+    function approve(address _spender, uint256 _value) external returns (bool success);
+}
+
 contract LuckySpin is Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.Bytes32Set;
@@ -62,21 +70,30 @@ contract LuckySpin is Ownable {
 
     ChestPiece public chestPiece;
 
+    SBT public sbt;
+
     address public validator;
 
     uint256 public requestExpire = 300;
 
     uint256[] public accPercentList = [0];
 
+    uint256 public limitSpin = 14;
+
     event SpinSuccess(address indexed user, string name, uint256 chestId, uint256 chestPieceId);
 
-    constructor(address _chest, address _chestPiece) {
+    mapping (address => EnumerableSet.UintSet) private records;
+
+    constructor(address _chest, address _chestPiece, address _sbt) {
         chest = Chest(_chest);
         chestPiece = ChestPiece(_chestPiece);
+        sbt = SBT(_sbt);
     }
 
     function spin(uint256 _nonce, bytes memory _sign) external {
         address user = _msgSender();
+        // require(sbt.balanceOf(user) > 0, "must have SBT");
+        require(records[user].length() < limitSpin, "out of turns");
         // bool validSign = _validateSign(user, _nonce, _sign);
         // require(validSign, "invalid sign");
         uint256 randomNumber = _random();
@@ -105,6 +122,7 @@ contract LuckySpin is Ownable {
         } else {
             emit SpinSuccess(user, info.name, 0, 0);
         }
+        records[user].add(block.timestamp);
     }
 
     function addPrize(bytes32 _prize, string memory _name, uint256 _limit, uint256 _percent) external onlyOwner {
@@ -127,7 +145,7 @@ contract LuckySpin is Ownable {
     }
 
     function _mintChestPiece(bytes32 _prize, address _user) internal {
-        chest.mint(_user, chestType[_prize], 1);
+        chestPiece.mint(_user, chestType[_prize], 1);
     }
 
     function _random() internal view returns (uint256) {
@@ -169,6 +187,11 @@ contract LuckySpin is Ownable {
 
     function _validateSign(address _user, uint256 _nonce, bytes memory _sign) internal view returns (bool) {
         uint256 _now = block.timestamp;
+        uint256 latest = 0;
+        if (records[_user].length() > 0) {
+            latest = records[_user].at(records[_user].length().sub(1));
+        }
+        require(latest == 0 || _now.sub(latest) > requestExpire, "must wait");
         require(_now <= _nonce + requestExpire, "request expired");
         bytes32 _hash = keccak256(abi.encodePacked(_user, _nonce));
         _hash = _hash.toEthSignedMessageHash();
@@ -186,6 +209,18 @@ contract LuckySpin is Ownable {
 
     function setChestType(bytes32 _prize, uint8 _chestType) external onlyOwner {
         chestType[_prize] = _chestType;
+    }
+
+    function setChest(address _chest) external onlyOwner {
+        chest = Chest(_chest);
+    }
+
+    function setChestPiece(address _chestPiece) external onlyOwner {
+        chestPiece = ChestPiece(_chestPiece);
+    }
+
+    function approve(address _token, address _spender, uint256 _amount) external onlyOwner {
+        Token(_token).approve(_spender, _amount);
     }
 }
 
