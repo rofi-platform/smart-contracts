@@ -18,6 +18,8 @@ contract ConvertGPEFI is Ownable {
     uint256 public dailyLimit = 288000000 * 10 ** 18;
     
     uint256 public convertedToday;
+
+    mapping (address => bool) public managers;
     
     mapping (uint256 => bytes32) roots;
     
@@ -28,6 +30,11 @@ contract ConvertGPEFI is Ownable {
     event ConvertSuccess(address indexed user, uint256 requestId);
     
     uint256 public claimLimit;
+
+    modifier onlyManager() {
+        require(managers[msg.sender], "require: only Manager");
+        _;
+    }
     
     constructor(address _pefi) {
         pefi = IPEFI(_pefi);
@@ -50,7 +57,7 @@ contract ConvertGPEFI is Ownable {
         pefi.transfer(_to, _total);
     }
     
-    function updateMerkleRoot(uint256 _timestamp, bytes32 _root) external onlyOwner {
+    function updateMerkleRoot(uint256 _timestamp, bytes32 _root) external onlyManager {
         roots[_timestamp] = _root;
 
         emit MerkleRootUpdated(_timestamp, _root);
@@ -75,5 +82,13 @@ contract ConvertGPEFI is Ownable {
     
     function setConvertedToday(uint256 _value) external onlyOwner {
         convertedToday = _value;
+    }
+
+    function addManager(address _manager) external onlyOwner {
+        managers[_manager] = true;
+    }
+
+    function removeManager(address _manager) external onlyOwner {
+        managers[_manager] = false;
     }
 }
